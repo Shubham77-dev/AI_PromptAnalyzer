@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PromptStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  prompts Prompt[]
+  likes   Like[]
+}
+
+model Prompt {
+  id        String       @id @default(uuid())
+  userId    String
+  content   String
+  status    PromptStatus @default(DRAFT)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysis PromptAnalysis?
+  stats    PromptStats?
+  likes    Like[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model PromptAnalysis {
+  id          String @id @default(uuid())
+  promptId    String @unique
+  accuracy    Int
+  clarity     Int
+  suggestions String
+
+  prompt Prompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+}
+
+model PromptStats {
+  id      String @id @default(uuid())
+  promptId String @unique
+  likes   Int    @default(0)
+  usage   Int    @default(0)
+
+  prompt Prompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  userId    String
+  promptId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt Prompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, promptId])
+  @@index([promptId])
+}
+
