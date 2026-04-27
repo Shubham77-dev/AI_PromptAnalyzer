@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Prompt Library (MVP) — with AI Rating System
 
-## Getting Started
+Production-ready SaaS starter for a **Prompt Library with AI Rating System**:
 
-First, run the development server:
+- **Next.js** (App Router, TypeScript)
+- **Prisma ORM** + **PostgreSQL**
+- **OpenAI API** integration (auto-mocks if `OPENAI_API_KEY` is missing)
+- **Tailwind CSS** UI
+- **Simple auth** via JWT stored in an httpOnly cookie
+
+## Features
+
+- **Upload**: paste a prompt, run AI analysis (accuracy/clarity + suggestions), save as draft
+- **Dashboard**: private list of your prompts + ratings, publish button
+- **Public library**: search + copy + like
+- **Like protection**: one like per user per prompt (unique constraint)
+- **Publishing guard**: can’t publish unless analysis exists
+
+## Setup
+
+### 1) Configure env
+
+Copy `.env.example` → `.env` and set:
+
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `OPENAI_API_KEY` (optional)
+
+### 2) Run Postgres
+
+This starter expects Postgres on `localhost:5432` by default.
+
+If you don’t have Postgres installed, install it locally (or point `DATABASE_URL` to your managed DB).
+
+### 3) Run migrations + seed
+
+```bash
+npm run db:migrate
+npm run db:seed
+```
+
+Note: Prisma v7 uses `prisma.config.ts` for the datasource URL (the schema no longer contains `url = env("DATABASE_URL")`).
+
+### 4) Run the app
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Routes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Pages**
+  - `/upload`
+  - `/dashboard`
+  - `/library`
 
-## Learn More
+- **API**
+  - `POST /api/analyze`
+  - `POST /api/prompt` (create draft)
+  - `POST /api/publish`
+  - `POST /api/like`
+  - `POST /api/auth/login`
+  - `POST /api/auth/logout`
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
