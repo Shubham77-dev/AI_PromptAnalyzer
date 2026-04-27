@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { Prisma } from "@prisma/client";
 
 const BodySchema = z.object({
   promptId: z.uuid(),
@@ -60,7 +59,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     // If two requests race, unique constraint might trigger.
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    if (
+      typeof e === "object" &&
+      e !== null &&
+      "code" in e &&
+      (e as { code?: unknown }).code === "P2002"
+    ) {
       const stats = await prisma.promptStats.findUnique({
         where: { promptId: prompt.id },
         select: { likes: true },

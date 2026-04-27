@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
+}
+
 function toErrorMessage(e: unknown) {
-  if (e instanceof Prisma.PrismaClientInitializationError) {
-    return `Prisma init error: ${e.message}`;
-  }
-  if (e instanceof Prisma.PrismaClientKnownRequestError) {
-    return `Prisma error ${e.code}: ${e.message}`;
-  }
   if (e instanceof Error) return e.message;
-  return "Unknown error";
+  if (!isObject(e)) return "Unknown error";
+
+  const name = typeof e.name === "string" ? e.name : "";
+  const code = typeof e.code === "string" ? e.code : "";
+  const message = typeof e.message === "string" ? e.message : "Unknown error";
+
+  if (name === "PrismaClientInitializationError") return `Prisma init error: ${message}`;
+  if (name === "PrismaClientKnownRequestError") return `Prisma error ${code}: ${message}`;
+  return message;
 }
 
 export async function GET() {

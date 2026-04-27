@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
 
@@ -11,15 +10,22 @@ const BodySchema = z.object({
   password: z.string().min(1).max(256).optional(),
 });
 
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
+}
+
 function prismaishMessage(e: unknown) {
-  if (e instanceof Prisma.PrismaClientInitializationError) {
-    return `Prisma init error: ${e.message}`;
-  }
-  if (e instanceof Prisma.PrismaClientKnownRequestError) {
-    return `Prisma error ${e.code}: ${e.message}`;
-  }
   if (e instanceof Error) return e.message;
-  return "Unknown error";
+  if (!isObject(e)) return "Unknown error";
+
+  // Avoid importing Prisma error classes (can differ across build/runtime tooling).
+  const name = typeof e.name === "string" ? e.name : "";
+  const code = typeof e.code === "string" ? e.code : "";
+  const message = typeof e.message === "string" ? e.message : "Unknown error";
+
+  if (name === "PrismaClientInitializationError") return `Prisma init error: ${message}`;
+  if (name === "PrismaClientKnownRequestError") return `Prisma error ${code}: ${message}`;
+  return message;
 }
 
 export async function POST(req: Request) {
@@ -59,9 +65,8 @@ export async function POST(req: Request) {
 
     const msg = prismaishMessage(e);
     const isDbInit =
-      e instanceof Prisma.PrismaClientInitializationError ||
-      (typeof msg === "string" &&
-        /database|reachable|connect|ECONN|ENOTFOUND|timeout/i.test(msg));
+      /Prisma init error/i.test(msg) ||
+      /database|reachable|connect|ECONN|ENOTFOUND|timeout|TLS|certificate/i.test(msg);
 
     return NextResponse.json(
       {
