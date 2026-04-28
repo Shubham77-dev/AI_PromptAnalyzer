@@ -1,13 +1,12 @@
-import { AppShell } from "@/components/layout/AppShell";
+import { PageMeta } from "@/components/layout/PageMeta";
 import DashboardPageSkeleton from "@/components/skeletons/DashboardPageSkeleton";
 
 export default function Loading() {
   return (
-    <AppShell title="Dashboard">
-      <div className="mx-auto w-full max-w-5xl">
-        <DashboardPageSkeleton />
-      </div>
-    </AppShell>
+    <div className="mx-auto w-full max-w-5xl">
+      <PageMeta title="Dashboard" />
+      <DashboardPageSkeleton />
+    </div>
   );
 }
 
