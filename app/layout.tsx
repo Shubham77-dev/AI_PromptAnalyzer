@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Header } from "@/app/_components/Header";
+import { ToasterProvider } from "@/app/_components/ToasterProvider";
 
 export const dynamic = "force-dynamic";
 
@@ -30,9 +30,9 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-zinc-50 text-zinc-950">
-        <Header />
-        <main className="flex-1">{children}</main>
+      <body className="min-h-full bg-[#F9F9F7] text-zinc-950">
+        <main>{children}</main>
+        <ToasterProvider />
       </body>
     </html>
   );

@@ -11,7 +11,7 @@ export function AuthControls({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  async function login(e: React.FormEvent<HTMLFormElement>) {
+  async function login(e: { preventDefault: () => void }) {
     e.preventDefault();
     setError(null);
 
@@ -27,13 +27,20 @@ export function AuthControls({
       return;
     }
 
-    startTransition(() => router.refresh());
+    const body = (await res.json()) as { token?: string } | null;
+    if (body?.token) globalThis.localStorage.setItem("pl_token", body.token);
+
+    startTransition(() => {
+      router.push("/dashboard");
+      router.refresh();
+    });
     setEmail("");
   }
 
   async function logout() {
     setError(null);
     await fetch("/api/auth/logout", { method: "POST" });
+    globalThis.localStorage.removeItem("pl_token");
     startTransition(() => router.refresh());
   }
 

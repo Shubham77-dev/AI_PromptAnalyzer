@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
+import { generateToken } from "@/lib/jwt";
 
 const BodySchema = z.object({
   email: z.email().max(320),
@@ -58,7 +59,8 @@ export async function POST(req: Request) {
       }));
 
     await createSession(ensuredUser);
-    return NextResponse.json({ ok: true, user: ensuredUser });
+    const token = await generateToken({ sub: ensuredUser.id, email: ensuredUser.email });
+    return NextResponse.json({ ok: true, user: ensuredUser, token });
   } catch (e) {
     console.error("[auth/login] failed");
     console.error(e);

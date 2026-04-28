@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { requireAuth } from "@/app/_lib/auth-guard";
 
 export function PublishButton({
   promptId,
@@ -16,19 +17,25 @@ export function PublishButton({
 
   async function publish() {
     setError(null);
-    const res = await fetch("/api/publish", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ promptId }),
-    });
+    const didRun = await requireAuth(
+      async () => {
+        const res = await fetch("/api/publish", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ promptId }),
+        });
 
-    if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as { error?: string } | null;
-      setError(body?.error || "Publish failed");
-      return;
-    }
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as { error?: string } | null;
+          setError(body?.error || "Publish failed");
+          return;
+        }
 
-    startTransition(() => router.refresh());
+        startTransition(() => router.refresh());
+      },
+      { router },
+    );
+    if (!didRun) return;
   }
 
   return (

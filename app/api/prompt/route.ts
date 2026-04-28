@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getUserFromAuthorizationHeader } from "@/lib/auth-header";
 
 const AnalysisSchema = z
   .object({
@@ -91,5 +92,50 @@ export async function GET() {
   });
 
   return NextResponse.json({ ok: true, prompts });
+}
+
+const DeleteSchema = z.object({
+  promptId: z.uuid(),
+});
+
+export async function DELETE(req: Request) {
+  try {
+    const authUser = await getUserFromAuthorizationHeader(
+      req.headers.get("authorization"),
+    );
+
+    if (!authUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const json = await req.json().catch(() => null);
+    const parsed = DeleteSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid input", issues: parsed.error.issues },
+        { status: 400 },
+      );
+    }
+
+    const prompt = await prisma.prompt.findUnique({
+      where: { id: parsed.data.promptId },
+      select: { id: true, userId: true },
+    });
+
+    if (!prompt) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (prompt.userId !== authUser.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    await prisma.prompt.delete({ where: { id: prompt.id } });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[prompt/delete] failed");
+    console.error(e);
+    return NextResponse.json(
+      { error: "Delete failed" },
+      { status: 500 },
+    );
+  }
 }
 
