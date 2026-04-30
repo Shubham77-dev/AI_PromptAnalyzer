@@ -3,10 +3,12 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Heart } from "lucide-react";
-import { ScorePill } from "@/components/library/ScorePill";
-import { ScoreBar } from "@/components/library/ScoreBar";
-import { SuggestionsPanel } from "@/components/library/SuggestionsPanel";
+import { parseSuggestionsText } from "@/components/library/SuggestionsPanel";
 import { requireAuth } from "@/app/_lib/auth-guard";
+import { ScoreBar } from "@/components/ui/ScoreBar";
+import { ScorePill } from "@/components/ui/ScorePill";
+import { SuggestionItem } from "@/components/ui/SuggestionItem";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 export interface LibraryPrompt {
   id: string;
@@ -25,6 +27,12 @@ function initials(email: string) {
   return (a + b).toUpperCase();
 }
 
+function barTone(score: number) {
+  if (score >= 80) return "var(--pa-acc2)";
+  if (score >= 50) return "var(--pa-acc4)";
+  return "var(--pa-acc3)";
+}
+
 export function PromptCard({ prompt }: Readonly<{ prompt: LibraryPrompt }>) {
   const router = useRouter();
   const [likes, setLikes] = useState(prompt.stats?.likes ?? 0);
@@ -35,11 +43,14 @@ export function PromptCard({ prompt }: Readonly<{ prompt: LibraryPrompt }>) {
   const [expanded, setExpanded] = useState(false);
 
   const date = useMemo(() => new Date(prompt.createdAt).toLocaleString(), [prompt.createdAt]);
-  const avatar = useMemo(() => initials(prompt.user.email), [prompt.user.email]);
-
+  const av = useMemo(() => initials(prompt.user.email), [prompt.user.email]);
   const accuracy = prompt.analysis?.accuracy ?? 0;
   const clarity = prompt.analysis?.clarity ?? 0;
   const isLong = prompt.content.trim().length > 260;
+  const parsed = useMemo(
+    () => (prompt.analysis?.suggestions ? parseSuggestionsText(prompt.analysis.suggestions) : null),
+    [prompt.analysis?.suggestions],
+  );
 
   async function onCopy() {
     await globalThis.navigator?.clipboard?.writeText(prompt.content);
@@ -58,9 +69,7 @@ export function PromptCard({ prompt }: Readonly<{ prompt: LibraryPrompt }>) {
           body: JSON.stringify({ promptId: prompt.id }),
         });
         if (!res.ok) return;
-        const body = (await res.json().catch(() => null)) as
-          | { likes?: number; liked?: boolean }
-          | null;
+        const body = (await res.json().catch(() => null)) as { likes?: number; liked?: boolean } | null;
         if (typeof body?.likes === "number") setLikes(body.likes);
         if (typeof body?.liked === "boolean") setLiked(body.liked);
         else setLiked(true);
@@ -72,98 +81,156 @@ export function PromptCard({ prompt }: Readonly<{ prompt: LibraryPrompt }>) {
     setLikePending(false);
   }
 
+  const rows =
+    parsed && showSuggestions
+      ? [
+          ...parsed.issues.map((t) => ({ key: `i-${t}`, type: "warn" as const, title: "Issue", desc: t })),
+          ...parsed.suggestions.map((t) => ({ key: `s-${t}`, type: "tip" as const, title: "Tip", desc: t })),
+        ]
+      : [];
+
   return (
-    <div className="rounded-xl border-[0.5px] border-gray-200/70 bg-white p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#7F77DD] text-xs font-medium text-white">
-            {avatar}
-          </div>
-          <div className="min-w-0 text-sm text-gray-700">
-            <span className="truncate">{prompt.user.email}</span>
-            <span className="mx-2 text-gray-400">•</span>
-            <span className="text-gray-500">{date}</span>
+    <div
+      className="pa-card-transition flex flex-col rounded-xl p-3.5"
+      style={{ border: "1px solid var(--pa-card-border)", background: "var(--pa-card)" }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "var(--pa-acc1)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--pa-card-border)";
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <UserAvatar initials={av} size="sm" />
+          <div className="min-w-0">
+            <span className="block truncate" style={{ fontSize: 11, color: "var(--pa-muted)" }}>
+              {prompt.user.email}
+            </span>
+            <span style={{ fontSize: 10, color: "var(--pa-muted)" }}>{date}</span>
           </div>
         </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <ScorePill label="Accuracy" score={accuracy} />
-          <ScorePill label="Clarity" score={clarity} />
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1">
+            <span style={{ fontSize: 10, color: "var(--pa-muted)" }}>Accuracy</span>
+            <ScorePill value={accuracy} />
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span style={{ fontSize: 10, color: "var(--pa-muted)" }}>Clarity</span>
+            <ScorePill value={clarity} />
+          </span>
         </div>
       </div>
 
-      <div className="mt-4">
-        <div
-          className="rounded-lg border-[0.5px] border-gray-200/70 bg-gray-100 px-3 py-2.5 font-mono text-[12px] text-gray-800 whitespace-pre-wrap"
-          style={
-            expanded
-              ? undefined
-              : {
-                  display: "-webkit-box",
-                  WebkitBoxOrient: "vertical",
-                  WebkitLineClamp: 3,
-                  overflow: "hidden",
-                }
-          }
+      <div
+        className="my-2 font-mono whitespace-pre-wrap"
+        style={
+          expanded
+            ? {
+                fontSize: 11,
+                color: "var(--pa-muted)",
+                lineHeight: 1.5,
+                background: "var(--pa-bg)",
+                padding: "8px 10px",
+                borderRadius: 8,
+              }
+            : {
+                fontSize: 11,
+                color: "var(--pa-muted)",
+                lineHeight: 1.5,
+                background: "var(--pa-bg)",
+                padding: "8px 10px",
+                borderRadius: 8,
+                display: "-webkit-box",
+                WebkitBoxOrient: "vertical",
+                WebkitLineClamp: 3,
+                overflow: "hidden",
+              }
+        }
+      >
+        {prompt.content}
+      </div>
+      {isLong ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="self-start border-0 bg-transparent"
+          style={{ fontSize: 10, color: "var(--pa-muted)" }}
         >
-          {prompt.content}
-        </div>
-        {isLong ? (
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="mt-2 text-xs font-medium text-gray-500 hover:text-gray-900"
-          >
-            {expanded ? "Show less" : "Read more"}
-          </button>
-        ) : null}
+          {expanded ? "Show less" : "Read more"}
+        </button>
+      ) : null}
+
+      <div className="grid gap-1">
+        <ScoreBar label="Accuracy" value={accuracy} color={barTone(accuracy)} compact />
+        <ScoreBar label="Clarity" value={clarity} color={barTone(clarity)} compact />
       </div>
 
-      <div className="mt-3 grid gap-2">
-        <ScoreBar label="Accuracy" score={accuracy} />
-        <ScoreBar label="Clarity" score={clarity} />
-      </div>
-
-      <div className="mt-4 flex items-center justify-between gap-4">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={onLike}
             disabled={likePending}
-            className={[
-              "inline-flex items-center gap-2 rounded-lg border-[0.5px] px-3 py-2 text-sm font-medium",
-              liked ? "bg-[#FBEAF0] text-[#993556] border-[#FBEAF0]" : "bg-white text-gray-700 border-gray-200/70",
-              likePending ? "opacity-60" : "hover:bg-gray-50",
-            ].join(" ")}
+            className="inline-flex items-center gap-1 border-0 bg-transparent"
+            style={{ color: liked ? "var(--pa-acc3)" : "var(--pa-muted)" }}
           >
-            <Heart className="h-4 w-4" fill={liked ? "currentColor" : "none"} />
-            <span className="tabular-nums">{likes}</span>
+            <Heart width={12} height={12} fill={liked ? "currentColor" : "none"} />
+            <span className="tabular-nums" style={{ fontSize: 11 }}>
+              {likes}
+            </span>
           </button>
-
           <button
+            type="button"
             onClick={() => setShowSuggestions((v) => !v)}
-            className="rounded-lg border-[0.5px] border-gray-200/70 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="border-0 bg-transparent"
+            style={{ fontSize: 10, color: "var(--pa-muted)" }}
           >
             View suggestions {showSuggestions ? "▴" : "▾"}
           </button>
         </div>
-
         <button
+          type="button"
           onClick={onCopy}
-          className={[
-            "rounded-lg border-[0.5px] px-3 py-2 text-sm font-medium",
-            copied
-              ? "border-[#1D9E75] bg-[#EAF3DE] text-[#27500A]"
-              : "border-[#EEEDFE] bg-[#EEEDFE] text-[#534AB7] hover:opacity-90",
-          ].join(" ")}
+          className="border-0 font-medium"
+          style={{
+            fontSize: 11,
+            borderRadius: 6,
+            padding: "4px 10px",
+            background: copied ? "color-mix(in srgb, var(--pa-acc2) 10%, transparent)" : "var(--pa-hint)",
+            color: copied ? "var(--pa-acc2)" : "var(--pa-acc1)",
+          }}
         >
           {copied ? "Copied!" : "Copy"}
         </button>
       </div>
 
-      {showSuggestions && prompt.analysis?.suggestions ? (
-        <SuggestionsPanel suggestionsText={prompt.analysis.suggestions} />
+      {showSuggestions && parsed ? (
+        <div className="mt-2 overflow-hidden rounded-lg" style={{ border: "1px solid var(--pa-card-border)" }}>
+          {rows.map((r, idx) => (
+            <SuggestionItem
+              key={r.key}
+              type={r.type}
+              title={r.title}
+              desc={r.desc}
+              hideBorder={idx === rows.length - 1}
+            />
+          ))}
+          {parsed.improvedPrompt ? (
+            <div className="p-3" style={{ background: "var(--pa-hint)" }}>
+              <div style={{ fontSize: 9, textTransform: "uppercase", color: "var(--pa-muted)" }}>
+                Improved prompt
+              </div>
+              <pre
+                className="mt-1 whitespace-pre-wrap font-mono"
+                style={{ fontSize: 11, color: "var(--pa-muted)" }}
+              >
+                {parsed.improvedPrompt}
+              </pre>
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
 }
-

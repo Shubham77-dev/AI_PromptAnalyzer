@@ -1,8 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0d0d1a;
+  --foreground: rgba(248, 248, 252, 0.96);
+  --pa-bg: #0d0d1a;
+  --pa-sidebar: #080810;
+  --pa-card: #1d1d29;
+  --pa-card-border: rgba(255, 255, 255, 0.09);
+  --pa-sb-border: rgba(255, 255, 255, 0.1);
+  --pa-hint: rgba(255, 255, 255, 0.12);
+  --pa-text: rgba(248, 248, 252, 0.96);
+  --pa-muted: rgba(200, 200, 220, 0.72);
+  --pa-acc1: #7b5cf0;
+  --pa-acc2: #06d6a0;
+  --pa-acc3: #ff6b9d;
+  --pa-acc4: #ffb703;
+  --pa-grad: linear-gradient(135deg, #7b5cf0 0%, #ff6b9d 100%);
+  --pa-gradient: var(--pa-grad);
 }
 
 @theme inline {
@@ -12,20 +26,109 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html.pa-theme-animate :where(body, aside, .pa-transition) {
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--pa-bg);
+  color: var(--pa-text);
   font-family: Arial, Helvetica, sans-serif;
 }
 
-@keyframes shimmer {
+.pa-sidebar-nav {
+  color: var(--pa-muted);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.pa-sidebar-nav:hover {
+  background: color-mix(in srgb, var(--pa-text) 8%, transparent);
+  color: var(--pa-text);
+}
+
+.pa-sidebar-nav.is-active {
+  background: color-mix(in srgb, var(--pa-acc1) 24%, transparent);
+  color: var(--pa-acc1);
+}
+
+.pa-card-transition {
+  transition: border-color 0.15s ease;
+}
+
+.pa-btn-transition {
+  transition: opacity 0.15s ease;
+}
+
+.pa-grad-text {
+  background: var(--pa-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes pa-glow {
+  0%,
+  100% {
+    opacity: 0.45;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 0.85;
+    filter: brightness(1.15);
+  }
+}
+
+@keyframes pa-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pa-bar {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes pa-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes pa-pgrow {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes pa-fadein {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pa-shimmer {
   0% {
     background-position: -400px 0;
   }
@@ -34,39 +137,27 @@ body {
   }
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+button.pa-btn-outline:hover:not(:disabled),
+a.pa-btn-outline:hover {
+  border-color: var(--pa-acc1);
+  color: var(--pa-acc1);
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
+.pa-search-input::placeholder {
+  color: var(--pa-muted);
 }
 
-@keyframes bounce {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
+.pa-float-orb {
+  animation: pa-float 3s ease infinite;
 }
 
 .pa-shimmer {
   background-image: linear-gradient(
     90deg,
-    rgba(127, 119, 221, 0.08) 0%,
-    rgba(127, 119, 221, 0.18) 50%,
-    rgba(127, 119, 221, 0.08) 100%
+    color-mix(in srgb, var(--pa-acc1) 12%, transparent) 0%,
+    color-mix(in srgb, var(--pa-acc1) 22%, transparent) 50%,
+    color-mix(in srgb, var(--pa-acc1) 12%, transparent) 100%
   );
   background-size: 400px 100%;
-  animation: shimmer 1.4s linear infinite;
+  animation: pa-shimmer 1.4s linear infinite;
 }

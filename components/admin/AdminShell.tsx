@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Settings } from "lucide-react";
 import { InnerTopbar } from "@/components/layout/InnerTopbar";
 import { SidebarNavItem } from "@/components/layout/SidebarNavItem";
+import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
 
 export interface AdminShellProps {
   title: string;
@@ -40,12 +41,25 @@ function AdminSidebar({ activePath, userEmail }: Readonly<{ activePath: string; 
   }
 
   return (
-    <aside className="fixed left-0 top-0 z-20 flex h-screen w-10 flex-col border-r-[0.5px] border-black/10 bg-white md:w-[220px]">
-      <div className="flex h-[52px] items-center gap-2 border-b-[0.5px] border-black/10 px-3">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#7F77DD]" aria-hidden="true" />
-        <div className="hidden items-center gap-2 md:flex">
-          <span className="text-[15px] font-medium text-gray-900">PromptAnalyzer</span>
-          <span className="inline-flex items-center rounded-md bg-red-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+    <aside className="pa-transition fixed left-0 top-0 z-20 flex h-screen w-10 flex-col border-r border-[var(--pa-sb-border)] bg-[var(--pa-sidebar)] md:w-[220px]">
+      <div className="flex h-[52px] items-center gap-2 border-b border-[var(--pa-sb-border)] px-3">
+        <span
+          className="h-2.5 w-2.5 shrink-0 rounded-full pa-float-orb"
+          style={{ backgroundImage: "var(--pa-grad)" }}
+          aria-hidden
+        />
+        <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
+          <span className="truncate text-[15px] font-medium" style={{ color: "var(--pa-text)" }}>
+            PromptAnalyzer
+          </span>
+          <span
+            className="ml-auto shrink-0 rounded-full px-1.5 py-0.5 font-semibold"
+            style={{
+              fontSize: 9,
+              background: "rgba(255,107,53,.2)",
+              color: "var(--pa-acc4)",
+            }}
+          >
             Admin
           </span>
         </div>
@@ -98,20 +112,31 @@ function AdminSidebar({ activePath, userEmail }: Readonly<{ activePath: string; 
         </div>
       </nav>
 
-      <div className="mt-auto border-t-[0.5px] border-black/10 p-2">
-        <div className="flex items-center gap-2 rounded-lg px-2 py-2">
-          <div className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-red-50 text-xs font-medium text-red-700 ring-1 ring-red-200">
-            {avatar}
-          </div>
-          <div className="hidden min-w-0 md:block">
-            <div className="truncate text-xs font-medium text-gray-700">{userEmail ?? "Admin"}</div>
-            <button
-              onClick={signOut}
-              disabled={isPending}
-              className="mt-0.5 text-xs font-medium text-gray-500 hover:text-red-600 disabled:opacity-60"
+      <div className="mt-auto border-t border-[var(--pa-sb-border)]">
+        <ThemeSwitcher />
+        <div className="p-2">
+          <div className="flex items-center gap-2 rounded-lg px-2 py-2">
+            <div
+              className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg text-xs font-medium text-white"
+              style={{ background: "linear-gradient(135deg,#FF6B35,#FF006E)" }}
             >
-              Sign out
-            </button>
+              {avatar}
+            </div>
+            <div className="hidden min-w-0 md:block">
+              <div className="truncate text-xs font-medium" style={{ color: "var(--pa-text)" }}>
+                {userEmail ?? "Admin"}
+              </div>
+              <div style={{ fontSize: 10, color: "var(--pa-acc4)" }}>admin role</div>
+              <button
+                type="button"
+                onClick={signOut}
+                disabled={isPending}
+                className="mt-0.5 text-xs font-medium disabled:opacity-60"
+                style={{ color: "var(--pa-muted)" }}
+              >
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -122,7 +147,7 @@ function AdminSidebar({ activePath, userEmail }: Readonly<{ activePath: string; 
 export function AdminShell({ title, userEmail, children }: Readonly<AdminShellProps>) {
   const pathname = usePathname() || "/admin";
   return (
-    <div className="min-h-screen bg-[#F9F9F7] text-gray-900">
+    <div className="min-h-screen bg-[var(--pa-bg)] text-[var(--pa-text)]">
       <AdminSidebar activePath={pathname} userEmail={userEmail} />
       <div className="ml-10 min-h-screen md:ml-[220px]">
         <InnerTopbar title={title} />
@@ -131,4 +156,3 @@ export function AdminShell({ title, userEmail, children }: Readonly<AdminShellPr
     </div>
   );
 }
-

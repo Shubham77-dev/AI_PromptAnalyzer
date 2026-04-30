@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ButtonGradient } from "@/components/ui/ButtonGradient";
+import { ButtonOutline } from "@/components/ui/ButtonOutline";
 
 export function AuthControls({
   initialEmail,
@@ -51,37 +53,41 @@ export function AuthControls({
 
   if (initialEmail) {
     return (
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-zinc-600">Signed in as</span>
-        <span className="text-sm font-medium">{initialEmail}</span>
-        <button
-          onClick={logout}
-          disabled={isPending}
-          className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60"
-        >
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm" style={{ color: "var(--pa-muted)" }}>
+          Signed in as
+        </span>
+        <span className="text-sm font-medium" style={{ color: "var(--pa-text)" }}>
+          {initialEmail}
+        </span>
+        <ButtonOutline onClick={logout} disabled={isPending}>
           Log out
-        </button>
+        </ButtonOutline>
       </div>
     );
   }
 
   return (
-    <form onSubmit={login} className="flex items-center gap-2">
+    <form onSubmit={login} className="flex flex-wrap items-center gap-2">
       <input
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="you@company.com"
-        className="w-52 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-zinc-900/10"
+        className="pa-search-input w-52 rounded-md px-3 py-1.5 text-sm outline-none"
+        style={{
+          border: "1px solid var(--pa-card-border)",
+          background: "color-mix(in srgb, var(--pa-bg) 60%, var(--pa-card))",
+          color: "var(--pa-text)",
+        }}
       />
-      <button
-        type="submit"
-        disabled={isPending || !email}
-        className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
-      >
+      <ButtonGradient type="submit" disabled={isPending || !email}>
         Sign in
-      </button>
-      {error ? <span className="text-xs text-red-600">{error}</span> : null}
+      </ButtonGradient>
+      {error ? (
+        <span className="text-xs" style={{ color: "var(--pa-acc3)" }}>
+          {error}
+        </span>
+      ) : null}
     </form>
   );
 }
-

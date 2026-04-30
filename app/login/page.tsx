@@ -9,9 +9,13 @@ export default async function LoginPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-10">
-      <div className="rounded-2xl border border-zinc-200 bg-white p-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Login</h1>
-        <p className="mt-2 text-sm leading-6 text-zinc-600">{ABOUT_MESSAGE}</p>
+      <div className="rounded-2xl p-8" style={{ border: "1px solid var(--pa-card-border)", background: "var(--pa-card)" }}>
+        <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--pa-text)" }}>
+          Login
+        </h1>
+        <p className="mt-2 text-sm leading-6" style={{ color: "var(--pa-muted)" }}>
+          {ABOUT_MESSAGE}
+        </p>
         <div className="mt-6">
           <AuthControls initialEmail={null} />
         </div>
@@ -19,4 +23,3 @@ export default async function LoginPage() {
     </div>
   );
 }
-

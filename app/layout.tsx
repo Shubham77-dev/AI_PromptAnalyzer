@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { PageMetaProvider } from "@/components/layout/PageMetaProvider";
 import { RootShell } from "@/components/layout/RootShell";
+import { ThemeProvider } from "@/context/ThemeContext";
 
 export const dynamic = "force-dynamic";
 
@@ -35,14 +36,16 @@ export default async function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-[#F9F9F7] text-zinc-950">
-        <AuthProvider initialEmail={user?.email ?? null}>
-          <PageMetaProvider>
-            <RootShell>
-              <main>{children}</main>
-            </RootShell>
-          </PageMetaProvider>
-        </AuthProvider>
+      <body className="min-h-full">
+        <ThemeProvider>
+          <AuthProvider initialEmail={user?.email ?? null}>
+            <PageMetaProvider>
+              <RootShell>
+                <main>{children}</main>
+              </RootShell>
+            </PageMetaProvider>
+          </AuthProvider>
+        </ThemeProvider>
         <ToasterProvider />
       </body>
     </html>

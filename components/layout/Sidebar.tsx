@@ -6,6 +6,8 @@ import { Settings } from "lucide-react";
 import { SidebarNavItem } from "@/components/layout/SidebarNavItem";
 import { requireAuth } from "@/app/_lib/auth-guard";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 export interface SidebarProps {
   activePath: string;
@@ -47,10 +49,14 @@ export function Sidebar({ activePath, userEmail }: Readonly<SidebarProps>) {
   }
 
   return (
-    <aside className="fixed left-0 top-0 z-20 flex h-screen w-10 flex-col border-r-[0.5px] border-black/10 bg-white md:w-[220px]">
-      <div className="flex h-[52px] items-center gap-2 border-b-[0.5px] border-black/10 px-3">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#7F77DD]" aria-hidden="true" />
-        <span className="hidden text-[15px] font-medium text-gray-900 md:block">
+    <aside className="pa-transition fixed left-0 top-0 z-20 flex h-screen w-10 flex-col border-r border-[var(--pa-sb-border)] bg-[var(--pa-sidebar)] md:w-[220px]">
+      <div className="flex h-[52px] items-center gap-2 border-b border-[var(--pa-sb-border)] px-3">
+        <span
+          className="h-2.5 w-2.5 shrink-0 rounded-full pa-float-orb"
+          style={{ backgroundImage: "var(--pa-grad)" }}
+          aria-hidden
+        />
+        <span className="hidden text-[15px] font-medium md:block" style={{ color: "var(--pa-text)" }}>
           PromptAnalyzer
         </span>
       </div>
@@ -90,44 +96,42 @@ export function Sidebar({ activePath, userEmail }: Readonly<SidebarProps>) {
             icon={<Settings className="h-4 w-4" aria-hidden />}
             onClick={userEmail ? undefined : () => void goProtected("/settings")}
           />
-          {/* <SidebarNavItem
-            href="/login"
-            label="Login"
-            active={activePath.startsWith("/login")}
-            icon={<Icon d="M10 17l1.4-1.4-2.6-2.6H20v-2H8.8l2.6-2.6L10 7l-5 5 5 5zm-8 4h10v-2H2V5h10V3H2v18z" />}
-          /> */}
         </div>
       </nav>
 
-      <div className="mt-auto border-t-[0.5px] border-black/10 p-2">
-        <div className="flex items-center gap-2 rounded-lg px-2 py-2">
-          <div className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-[#EEEDFE] text-xs font-medium text-[#534AB7]">
-            {avatar}
-          </div>
-          <div className="hidden min-w-0 md:block">
-            <div className="truncate text-xs font-medium text-gray-700">
-              {userEmail ?? "Guest"}
+      <div className="mt-auto border-t border-[var(--pa-sb-border)]">
+        <ThemeSwitcher />
+        <div className="p-2">
+          <div className="flex items-center gap-2 rounded-lg px-2 py-2">
+            <UserAvatar initials={avatar} size="sm" />
+            <div className="hidden min-w-0 md:block">
+              <div className="truncate text-xs font-medium" style={{ color: "var(--pa-text)" }}>
+                {userEmail ?? "Guest"}
+              </div>
+              {userEmail ? (
+                <button
+                  type="button"
+                  onClick={signOut}
+                  disabled={isPending}
+                  className="mt-0.5 text-xs font-medium disabled:opacity-60"
+                  style={{ color: "var(--pa-muted)" }}
+                >
+                  Sign out
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => router.push("/login")}
+                  className="mt-0.5 text-xs font-medium"
+                  style={{ color: "var(--pa-muted)" }}
+                >
+                  Sign in
+                </button>
+              )}
             </div>
-            {userEmail ? (
-              <button
-                onClick={signOut}
-                disabled={isPending}
-                className="mt-0.5 text-xs font-medium text-gray-500 hover:text-red-600 disabled:opacity-60"
-              >
-                Sign out
-              </button>
-            ) : (
-              <button
-                onClick={() => router.push("/login")}
-                className="mt-0.5 text-xs font-medium text-gray-500 hover:text-gray-900"
-              >
-                Sign in
-              </button>
-            )}
           </div>
         </div>
       </div>
     </aside>
   );
 }
-

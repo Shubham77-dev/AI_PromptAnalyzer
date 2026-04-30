@@ -20,7 +20,7 @@ export function RootShell({ children }: Readonly<{ children: React.ReactNode }>)
   }
 
   return (
-    <div className="min-h-screen bg-[#F9F9F7] text-gray-900">
+    <div className="min-h-screen bg-[var(--pa-bg)] text-[var(--pa-text)]">
       {state.status === "loading" ? (
         <SidebarSkeleton />
       ) : (

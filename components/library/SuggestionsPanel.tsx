@@ -6,7 +6,7 @@ type Parsed = {
   improvedPrompt: string | null;
 };
 
-function parseSuggestionsText(text: string): Parsed {
+export function parseSuggestionsText(text: string): Parsed {
   const lines = text.split(/\r?\n/);
   const lower = lines.map((l) => l.trim());
 
@@ -51,13 +51,15 @@ export function SuggestionsPanel({
   const label = parsed.issues.length ? "Issues detected" : "Suggestions";
 
   return (
-    <div className="mt-4 rounded-xl border-[0.5px] border-gray-200/70 bg-white p-4">
-      <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500">{label}</div>
+    <div className="mt-4 rounded-xl p-4" style={{ border: "1px solid var(--pa-card-border)", background: "var(--pa-card)" }}>
+      <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", color: "var(--pa-muted)" }}>
+        {label}
+      </div>
 
       <div className="mt-3 grid gap-2">
         {(parsed.issues.length ? parsed.issues : parsed.suggestions).slice(0, 12).map((t) => (
-          <div key={t} className="flex gap-2 text-sm text-gray-700">
-            <Dot color={parsed.issues.length ? "#EF9F27" : "#7F77DD"} />
+          <div key={t} className="flex gap-2 text-sm" style={{ color: "var(--pa-text)" }}>
+            <Dot color={parsed.issues.length ? "var(--pa-acc4)" : "var(--pa-acc1)"} />
             <div className="min-w-0">{t}</div>
           </div>
         ))}
@@ -65,10 +67,13 @@ export function SuggestionsPanel({
 
       {parsed.improvedPrompt ? (
         <div className="mt-4">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
+          <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", color: "var(--pa-muted)" }}>
             Improved prompt preview
           </div>
-          <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-900 p-3 font-mono text-[12px] text-gray-100">
+          <pre
+            className="mt-2 whitespace-pre-wrap rounded-lg p-3 font-mono text-[12px]"
+            style={{ background: "var(--pa-hint)", color: "var(--pa-text)" }}
+          >
             {parsed.improvedPrompt}
           </pre>
         </div>
@@ -76,4 +81,3 @@ export function SuggestionsPanel({
     </div>
   );
 }
-

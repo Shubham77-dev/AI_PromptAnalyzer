@@ -16,7 +16,7 @@ export function AppShell({ title, actions, userEmail = null, children }: Readonl
   const pathname = usePathname() || "/";
 
   return (
-    <div className="min-h-screen bg-[#F9F9F7] text-gray-900">
+    <div className="min-h-screen bg-[var(--pa-bg)] text-[var(--pa-text)]">
       <Sidebar activePath={pathname} userEmail={userEmail} />
       <div className="ml-10 min-h-screen md:ml-[220px]">
         <InnerTopbar title={title} actions={actions} />
