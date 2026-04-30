@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { adminRemovePrompt, adminUnpublishPrompt } from "@/app/admin/actions";
+import { adminRemovePrompt } from "@/app/admin/actions";
+import { PublishToggle } from "@/components/admin/PublishToggle";
 
 export type AdminPromptsSearchParams = {
   status?: "PUBLISHED" | "DRAFT" | "UNDER_REVIEW" | "all";
@@ -25,6 +26,12 @@ function parseScore(v: string | undefined) {
   const n = Number(v);
   if (!Number.isFinite(n)) return null;
   return Math.max(0, Math.min(100, n));
+}
+
+function effectiveScore(p: { score: number | null; analysis: { accuracy: number | null } | null }) {
+  if (typeof p.score === "number" && Number.isFinite(p.score)) return Math.round(p.score);
+  const acc = p.analysis?.accuracy;
+  return typeof acc === "number" && Number.isFinite(acc) ? acc : null;
 }
 
 export async function PromptTable({ searchParams }: Readonly<{ searchParams: AdminPromptsSearchParams }>) {
@@ -125,6 +132,8 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
           const accuracy = p.analysis?.accuracy ?? null;
           const clarity = p.analysis?.clarity ?? null;
           const likes = p.stats?.likes ?? 0;
+          const score = effectiveScore({ score: p.score ?? null, analysis: { accuracy: accuracy ?? null } });
+          const canPublish = typeof score === "number" && score >= 50;
           return (
             <div key={p.id} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-black/10">
               <div className="flex items-start justify-between gap-3">
@@ -174,15 +183,15 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <form action={adminUnpublishPrompt} className="flex-1">
-                  <input type="hidden" name="promptId" value={p.id} />
-                  <button
-                    type="submit"
-                    className="w-full rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700"
-                  >
-                    Unpublish
-                  </button>
-                </form>
+                <div className="flex-1">
+                  <PublishToggle
+                    promptId={p.id}
+                    status={p.status}
+                    size="md"
+                    disabled={!canPublish && p.status !== "PUBLISHED"}
+                    disabledReason={!canPublish ? "Publish requires score ≥ 50" : undefined}
+                  />
+                </div>
                 <form action={adminRemovePrompt} className="flex-1">
                   <input type="hidden" name="promptId" value={p.id} />
                   <button
@@ -221,6 +230,8 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
               const accuracy = p.analysis?.accuracy ?? null;
               const clarity = p.analysis?.clarity ?? null;
               const likes = p.stats?.likes ?? 0;
+              const score = effectiveScore({ score: p.score ?? null, analysis: { accuracy: accuracy ?? null } });
+              const canPublish = typeof score === "number" && score >= 50;
               return (
                 <tr key={p.id} className="hover:bg-gray-50/60">
                   <td className="px-4 py-3 text-gray-800">{truncate(p.content)}</td>
@@ -248,15 +259,12 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
                       >
                         View
                       </a>
-                      <form action={adminUnpublishPrompt}>
-                        <input type="hidden" name="promptId" value={p.id} />
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
-                        >
-                          Unpublish
-                        </button>
-                      </form>
+                      <PublishToggle
+                        promptId={p.id}
+                        status={p.status}
+                        disabled={!canPublish && p.status !== "PUBLISHED"}
+                        disabledReason={!canPublish ? "Publish requires score ≥ 50" : undefined}
+                      />
                       <form action={adminRemovePrompt}>
                         <input type="hidden" name="promptId" value={p.id} />
                         <button

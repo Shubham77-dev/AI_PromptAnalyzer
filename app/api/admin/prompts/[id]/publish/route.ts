@@ -28,6 +28,7 @@ export async function PATCH(_req: NextRequest, ctx: { params: Promise<{ id: stri
     where: { id: parsed.data.id },
     select: {
       id: true,
+      status: true,
       moderationStatus: true,
       score: true,
       analysis: { select: { accuracy: true } },
@@ -38,12 +39,8 @@ export async function PATCH(_req: NextRequest, ctx: { params: Promise<{ id: stri
     return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
   }
 
-  if (prompt.moderationStatus === "APPROVED") {
-    return NextResponse.json({ success: true, message: "Already approved" });
-  }
-
-  if (prompt.moderationStatus !== "PENDING") {
-    return NextResponse.json({ success: false, error: "Prompt is not pending review" }, { status: 409 });
+  if (prompt.status === "PUBLISHED") {
+    return NextResponse.json({ success: true, message: "Already published" });
   }
 
   const score = effectiveScore(prompt);
@@ -60,7 +57,7 @@ export async function PATCH(_req: NextRequest, ctx: { params: Promise<{ id: stri
       status: "PUBLISHED",
       moderationStatus: "APPROVED",
       flagged: false,
-      reason: "Approved by admin.",
+      reason: prompt.moderationStatus === "PENDING" ? "Approved by admin." : "Published by admin.",
     },
   });
 

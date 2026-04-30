@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { PageMeta } from "@/components/layout/PageMeta";
-import { adminApprovePrompt, adminRejectPrompt } from "./actions";
+import { PublishToggle } from "@/components/admin/PublishToggle";
+import { adminRejectPrompt } from "./actions";
 
 function scoreFor(p: { score: number | null; analysis: { accuracy: number } | null }) {
   if (typeof p.score === "number" && Number.isFinite(p.score)) return Math.round(p.score);
@@ -20,6 +21,7 @@ export default async function AdminReviewPage() {
       flags: true,
       reason: true,
       score: true,
+      status: true,
       moderationStatus: true,
       updatedAt: true,
       user: { select: { email: true } },
@@ -48,6 +50,9 @@ export default async function AdminReviewPage() {
                     <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800 ring-1 ring-amber-200">
                       {p.moderationStatus}
                     </span>
+                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-700 ring-1 ring-black/10">
+                      status: {p.status}
+                    </span>
                     <span className="inline-flex items-center rounded-full bg-white px-2 py-0.5 font-semibold text-gray-700 ring-1 ring-black/10">
                       score: {score ?? "—"}
                     </span>
@@ -58,20 +63,13 @@ export default async function AdminReviewPage() {
                 </div>
 
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                  <form action={adminApprovePrompt}>
-                    <input type="hidden" name="promptId" value={p.id} />
-                    <button
-                      type="submit"
-                      disabled={!canApprove}
-                      className={[
-                        "rounded-lg px-3 py-2 text-sm font-semibold text-white",
-                        canApprove ? "bg-emerald-600 hover:bg-emerald-700" : "bg-emerald-600/40 cursor-not-allowed",
-                      ].join(" ")}
-                      title={canApprove ? "Approve and publish" : "Requires score > 70"}
-                    >
-                      Approve & publish
-                    </button>
-                  </form>
+                  <PublishToggle
+                    promptId={p.id}
+                    status={p.status}
+                    size="md"
+                    disabled={!canApprove}
+                    disabledReason="Publish requires score ≥ 50"
+                  />
                   <form action={adminRejectPrompt}>
                     <input type="hidden" name="promptId" value={p.id} />
                     <button

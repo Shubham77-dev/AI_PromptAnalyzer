@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { FlagCard } from "@/components/admin/FlagCard";
-import { adminIgnoreFlag, adminRemovePrompt, adminSuspendUser, adminUnpublishPrompt } from "@/app/admin/actions";
+import { PublishToggle } from "@/components/admin/PublishToggle";
+import { adminIgnoreFlag, adminRemovePrompt, adminSuspendUser } from "@/app/admin/actions";
 
 function scoreFor(p: { score: number | null; analysis: { accuracy: number } | null }) {
   if (typeof p.score === "number" && Number.isFinite(p.score)) return Math.round(p.score);
@@ -77,15 +78,7 @@ export default async function AdminFlaggedPage() {
                       Ignore
                     </button>
                   </form>
-                  <form action={adminUnpublishPrompt}>
-                    <input type="hidden" name="promptId" value={p.id} />
-                    <button
-                      type="submit"
-                      className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
-                    >
-                      Unpublish
-                    </button>
-                  </form>
+                  <PublishToggle promptId={p.id} status={p.status} />
                   <form action={adminSuspendUser}>
                     <input type="hidden" name="userId" value={p.userId} />
                     <button
