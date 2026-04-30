@@ -2,6 +2,7 @@
 
 import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Settings } from "lucide-react";
 import { SidebarNavItem } from "@/components/layout/SidebarNavItem";
 import { requireAuth } from "@/app/_lib/auth-guard";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -81,6 +82,13 @@ export function Sidebar({ activePath, userEmail }: Readonly<SidebarProps>) {
             label="Library"
             active={activePath.startsWith("/library")}
             icon={<Icon d="M6 6h14v2H6V6zM6 11h14v2H6v-2zM6 16h14v2H6v-2zM4 6h1v2H4V6zm0 5h1v2H4v-2zm0 5h1v2H4v-2z" />}
+          />
+          <SidebarNavItem
+            href="/settings"
+            label="Settings"
+            active={activePath.startsWith("/settings")}
+            icon={<Settings className="h-4 w-4" aria-hidden />}
+            onClick={userEmail ? undefined : () => void goProtected("/settings")}
           />
           {/* <SidebarNavItem
             href="/login"

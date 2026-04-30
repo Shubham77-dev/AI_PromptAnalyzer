@@ -2,6 +2,9 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Prisma ORM 7: connection URLs are not in this file; see `prisma.config.ts` (CLI/migrate) and `lib/prisma.ts` (runtime `pg` pool from DATABASE_URL).
+// Use DATABASE_URL = Supabase pooler (e.g. :6543, `?pgbouncer=true`) for the app; DIRECT_URL = direct Postgres (e.g. :5432) for `migrate` / `db push`.
+// After schema changes: `npx prisma migrate dev --name <change>` then `npx prisma migrate deploy` in CI/production.
 datasource db {
   provider = "postgresql"
 }
@@ -9,11 +12,23 @@ datasource db {
 enum PromptStatus {
   DRAFT
   PUBLISHED
+  UNDER_REVIEW
 }
 
 enum UserRole {
   USER
   ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum UserPlan {
+  FREE
+  PRO
+  ENTERPRISE
 }
 
 enum ModerationStatus {
@@ -26,6 +41,8 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   role      UserRole @default(USER)
+  status    UserStatus @default(ACTIVE)
+  plan      UserPlan @default(FREE)
   createdAt DateTime @default(now())
 
   prompts Prompt[]
@@ -41,6 +58,10 @@ model Prompt {
   moderationStatus ModerationStatus @default(APPROVED)
   flagged   Boolean      @default(false)
   reason    String?
+  /// Combined hybrid analyzer score (0–100). Distinct from moderation API scores on publish.
+  score     Float?
+  flags     String[]     @default([])
+  aiDetails Json?
   moderationScore Float?
   moderationRaw Json?
   createdAt DateTime     @default(now())
@@ -103,5 +124,20 @@ model DailyUsage {
   @@unique([day, ipHash])
   @@index([userId, day])
   @@index([ipHash, day])
+}
+
+model AppConfig {
+  id Int @id
+
+  minPublishScore Int @default(60)
+  freeTierDailyLimit Int @default(10)
+
+  requireEmailVerification Boolean @default(false)
+  allowPublicRegistration Boolean @default(true)
+  maintenanceMode Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("app_config")
 }
 

@@ -1,0 +1,125 @@
+"use client";
+
+import type { ChangeEvent } from "react";
+
+function initialsFromEmail(email: string) {
+  const name = email.split("@")[0] ?? email;
+  return (name.slice(0, 2) || "U").toUpperCase();
+}
+
+export interface ProfileSectionProps {
+  displayName: string;
+  email: string;
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+  onDisplayNameChange: (v: string) => void;
+  onEmailChange: (v: string) => void;
+  onCurrentPasswordChange: (v: string) => void;
+  onNewPasswordChange: (v: string) => void;
+  onConfirmPasswordChange: (v: string) => void;
+  onRequestDelete: () => void;
+}
+
+export function ProfileSection({
+  displayName,
+  email,
+  currentPassword,
+  newPassword,
+  confirmPassword,
+  onDisplayNameChange,
+  onEmailChange,
+  onCurrentPasswordChange,
+  onNewPasswordChange,
+  onConfirmPasswordChange,
+  onRequestDelete,
+}: Readonly<ProfileSectionProps>) {
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-base font-medium text-gray-900">Profile</h2>
+        <p className="mt-1 text-sm text-gray-600">Your visible name and sign-in details.</p>
+      </div>
+
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+        <div
+          className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[#EEEDFE] text-lg font-semibold text-[#534AB7]"
+          aria-hidden
+        >
+          {initialsFromEmail(displayName || email)}
+        </div>
+        <div className="min-w-0 flex-1 space-y-4">
+          <label className="block">
+            <span className="text-xs font-medium text-gray-700">Display name</span>
+            <input
+              value={displayName}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => onDisplayNameChange(e.target.value)}
+              className="mt-1.5 w-full max-w-md rounded-lg border-[0.5px] border-black/10 bg-white px-3 py-2 text-sm outline-none ring-[#534AB7]/25 focus:ring-2"
+              autoComplete="name"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-gray-700">Email</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => onEmailChange(e.target.value)}
+              className="mt-1.5 w-full max-w-md rounded-lg border-[0.5px] border-black/10 bg-white px-3 py-2 text-sm outline-none ring-[#534AB7]/25 focus:ring-2"
+              autoComplete="email"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="rounded-xl border-[0.5px] border-black/10 bg-white p-5">
+        <h3 className="text-sm font-medium text-gray-900">Change password</h3>
+        <div className="mt-4 grid max-w-md gap-4">
+          <label className="block">
+            <span className="text-xs font-medium text-gray-700">Current password</span>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => onCurrentPasswordChange(e.target.value)}
+              className="mt-1.5 w-full rounded-lg border-[0.5px] border-black/10 bg-white px-3 py-2 text-sm outline-none ring-[#534AB7]/25 focus:ring-2"
+              autoComplete="current-password"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-gray-700">New password</span>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => onNewPasswordChange(e.target.value)}
+              className="mt-1.5 w-full rounded-lg border-[0.5px] border-black/10 bg-white px-3 py-2 text-sm outline-none ring-[#534AB7]/25 focus:ring-2"
+              autoComplete="new-password"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-gray-700">Confirm new password</span>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => onConfirmPasswordChange(e.target.value)}
+              className="mt-1.5 w-full rounded-lg border-[0.5px] border-black/10 bg-white px-3 py-2 text-sm outline-none ring-[#534AB7]/25 focus:ring-2"
+              autoComplete="new-password"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-red-200 bg-red-50/80 p-5">
+        <h3 className="text-sm font-medium text-red-900">Danger zone</h3>
+        <p className="mt-1 text-sm text-red-800/90">
+          Permanently delete your account and associated drafts. This cannot be undone.
+        </p>
+        <button
+          type="button"
+          onClick={onRequestDelete}
+          className="mt-4 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+        >
+          Delete account
+        </button>
+      </div>
+    </div>
+  );
+}

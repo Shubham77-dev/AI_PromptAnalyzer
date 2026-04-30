@@ -34,7 +34,10 @@ export function SearchAndFilters({ prompts }: Readonly<{ prompts: LibraryPrompt[
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("recent");
 
-  useEffect(() => setHydrated(true), []);
+  useEffect(() => {
+    const id = globalThis.setTimeout(() => setHydrated(true), 0);
+    return () => globalThis.clearTimeout(id);
+  }, []);
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();

@@ -6,7 +6,7 @@ async function main() {
   const user = await prisma.user.upsert({
     where: { email: "demo@promptlib.dev" },
     update: {},
-    create: { email: "demo@promptlib.dev" },
+    create: { email: "demo@promptlib.dev", role: "USER" },
   });
 
   const existing = await prisma.prompt.findFirst({

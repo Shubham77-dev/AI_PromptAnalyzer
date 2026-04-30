@@ -27,12 +27,15 @@ export function AuthControls({
       return;
     }
 
-    const body = (await res.json()) as { token?: string } | null;
+    const body = (await res.json().catch(() => null)) as
+      | { token?: string; user?: { role?: "USER" | "ADMIN" } | null }
+      | null;
     if (body?.token) globalThis.localStorage.setItem("pl_token", body.token);
     globalThis.dispatchEvent(new Event("auth-changed"));
 
     startTransition(() => {
-      router.push("/dashboard");
+      const role = body?.user?.role;
+      router.push(role === "ADMIN" ? "/admin" : "/dashboard");
       router.refresh();
     });
     setEmail("");

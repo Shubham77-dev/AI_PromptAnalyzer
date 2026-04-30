@@ -5,7 +5,7 @@ import { ABOUT_MESSAGE } from "@/app/_lib/app-config";
 
 export default async function LoginPage() {
   const user = await getCurrentUser();
-  if (user) redirect("/dashboard");
+  if (user) redirect(user.role === "ADMIN" ? "/admin" : "/dashboard");
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-10">

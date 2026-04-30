@@ -1,77 +1,95 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { moderateContent } from "@/lib/moderation";
+import { isAdmin } from "@/lib/rbac";
 
 const BodySchema = z.object({
   promptId: z.uuid(),
 });
 
+const MIN_ADMIN_PUBLISH_SCORE = 50;
+
+function effectiveScore(prompt: { score: number | null; analysis: { accuracy: number } | null }) {
+  if (typeof prompt.score === "number" && Number.isFinite(prompt.score)) return prompt.score;
+  const acc = prompt.analysis?.accuracy;
+  return typeof acc === "number" && Number.isFinite(acc) ? acc : null;
+}
+
 export async function POST(req: Request) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Unauthorized",
+        message: "Please log in to publish prompts",
+      },
+      { status: 401 },
+    );
+  }
+
+  // Deprecated endpoint: publishing is admin-only.
+  if (!isAdmin(user)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Forbidden",
+        message: "Only admins can publish prompts",
+      },
+      { status: 403 },
+    );
+  }
 
   const json = await req.json().catch(() => null);
   const parsed = BodySchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Invalid input", issues: parsed.error.issues },
+      {
+        success: false,
+        error: "Invalid input",
+        message: "Invalid request data",
+      },
       { status: 400 },
     );
   }
 
-  const prompt = await prisma.prompt.findFirst({
-    where: { id: parsed.data.promptId, userId: user.id },
+  const prompt = await prisma.prompt.findUnique({
+    where: { id: parsed.data.promptId },
     include: { analysis: true },
   });
 
-  if (!prompt) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (!prompt.analysis) {
+  if (!prompt) {
     return NextResponse.json(
-      { error: "Analyze this prompt before publishing." },
-      { status: 400 },
+      {
+        success: false,
+        error: "Not found",
+        message: "Prompt not found",
+      },
+      { status: 404 },
     );
   }
 
-  const decision = await moderateContent(prompt.content);
-  console.log("[moderation] publish decision:", {
-    promptId: prompt.id,
-    status: decision.status,
-    flagged: decision.flagged,
-    score: decision.score,
-    reason: decision.reason,
-  });
-
-  if (decision.status === "rejected") {
-    await prisma.prompt.update({
-      where: { id: prompt.id },
-      data: {
-        moderationStatus: "REJECTED",
-        flagged: decision.flagged,
-        reason: decision.reason,
-        moderationScore: decision.score ?? null,
-        moderationRaw: decision.raw ? (decision.raw as Prisma.InputJsonValue) : Prisma.DbNull,
+  if (prompt.moderationStatus !== "PENDING") {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Invalid state",
+        message: "Prompt is not pending review",
       },
-    });
-    return NextResponse.json({ error: decision.reason, flagged: true }, { status: 400 });
+      { status: 409 },
+    );
   }
 
-  if (decision.status === "pending") {
-    await prisma.prompt.update({
-      where: { id: prompt.id },
-      data: {
-        moderationStatus: "PENDING",
-        flagged: decision.flagged,
-        reason: decision.reason,
-        moderationScore: decision.score ?? null,
-        moderationRaw: decision.raw ? (decision.raw as Prisma.InputJsonValue) : Prisma.DbNull,
-      },
-    });
+  const score = effectiveScore(prompt);
+  if (!(typeof score === "number" && score >= MIN_ADMIN_PUBLISH_SCORE)) {
     return NextResponse.json(
-      { error: "Pending admin review", moderation: decision },
-      { status: 202 },
+      {
+        success: false,
+        error: "Score too low",
+        message: `Publish requires score ≥ ${MIN_ADMIN_PUBLISH_SCORE}`,
+      },
+      { status: 400 },
     );
   }
 
@@ -80,13 +98,17 @@ export async function POST(req: Request) {
     data: {
       status: "PUBLISHED",
       moderationStatus: "APPROVED",
-      flagged: decision.flagged,
-      reason: decision.reason,
-      moderationScore: decision.score ?? null,
-      moderationRaw: decision.raw ? (decision.raw as Prisma.InputJsonValue) : Prisma.DbNull,
+      flagged: false,
+      reason: "Approved by admin.",
     },
   });
 
-  return NextResponse.json({ ok: true, prompt: updated, moderation: decision });
+  return NextResponse.json({
+    success: true,
+    ok: true,
+    prompt: updated,
+    status: "PUBLISHED",
+    message: "Prompt published successfully",
+  });
 }
 

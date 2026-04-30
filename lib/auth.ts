@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import type { JwtSessionPayload as SessionPayload } from "@/lib/jwt";
 import { generateToken, verifyToken } from "@/lib/jwt";
+import type { CurrentUser } from "@/lib/rbac";
 
 const COOKIE_NAME = "pl_session";
 
@@ -44,10 +45,11 @@ export async function getCurrentUser() {
   try {
     const user = await prisma.user.findUnique({
       where: { id: session.sub },
-      select: { id: true, email: true },
+      select: { id: true, email: true, role: true },
     });
 
-    return user;
+    if (!user) return null;
+    return user as CurrentUser;
   } catch {
     return null;
   }

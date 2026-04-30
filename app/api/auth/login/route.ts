@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { prismaKnownRequestResponse } from "@/lib/prisma-errors";
 import { createSession } from "@/lib/auth";
 import { generateToken } from "@/lib/jwt";
 
@@ -48,20 +49,25 @@ export async function POST(req: Request) {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true },
+      select: { id: true, email: true, role: true },
     });
 
     const ensuredUser =
       user ??
       (await prisma.user.create({
-        data: { email },
-        select: { id: true, email: true },
+        data: { email, role: "USER" },
+        select: { id: true, email: true, role: true },
       }));
 
     await createSession(ensuredUser);
     const token = await generateToken({ sub: ensuredUser.id, email: ensuredUser.email });
     return NextResponse.json({ ok: true, user: ensuredUser, token });
   } catch (e) {
+    const mapped = prismaKnownRequestResponse(e);
+    if (mapped) {
+      return NextResponse.json(mapped.body, { status: mapped.status });
+    }
+
     console.error("[auth/login] failed");
     console.error(e);
 

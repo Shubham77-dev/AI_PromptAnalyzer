@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { analyzePrompt } from "@/lib/ai";
+import { analyzePromptQuality } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import {
   checkAndIncrementDailyUsage,
@@ -41,13 +41,15 @@ export async function POST(req: Request) {
     );
   }
 
-  const result = await analyzePrompt(parsed.data.content);
+  const result = await analyzePromptQuality(parsed.data.content);
   return NextResponse.json({
     score: result.score,
     issues: result.issues,
     suggestions: result.suggestions,
     improvedPrompt: result.improvedPrompt,
     source: result.source,
+    breakdown: result.breakdown,
+    missingParts: result.missingParts,
     usage: { limit, remaining: usage.remaining },
   });
 }

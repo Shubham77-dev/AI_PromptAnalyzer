@@ -38,8 +38,9 @@ export function AuthProvider({
   };
 
   useEffect(() => {
-    void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Defer to avoid synchronous setState-in-effect lint/perf issue.
+    const id = globalThis.setTimeout(() => void refresh(), 0);
+    return () => globalThis.clearTimeout(id);
   }, []);
 
   useEffect(() => {
@@ -55,7 +56,6 @@ export function AuthProvider({
     const onChanged = () => void refresh();
     globalThis.addEventListener("auth-changed", onChanged);
     return () => globalThis.removeEventListener("auth-changed", onChanged);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value = useMemo<AuthContextValue>(() => ({ state, refresh }), [state]);

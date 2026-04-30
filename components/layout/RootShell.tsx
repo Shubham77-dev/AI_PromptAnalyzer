@@ -14,6 +14,11 @@ export function RootShell({ children }: Readonly<{ children: React.ReactNode }>)
 
   const userEmail = state.status === "authenticated" ? state.user.email : null;
 
+  // Admin routes have their own shell; avoid double sidebars/margins.
+  if (pathname.startsWith("/admin")) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="min-h-screen bg-[#F9F9F7] text-gray-900">
       {state.status === "loading" ? (
