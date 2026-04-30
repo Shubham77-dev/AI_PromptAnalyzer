@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { SearchAndFilters } from "@/components/library/SearchAndFilters";
 import type { LibraryPrompt } from "@/components/library/PromptCard";
-import { AppShell } from "@/components/layout/AppShell";
+import { PageMeta } from "@/components/layout/PageMeta";
 
 export default async function LibraryPage({
   searchParams,
@@ -13,6 +13,7 @@ export default async function LibraryPage({
     .findMany({
       where: {
         status: "PUBLISHED",
+        moderationStatus: "APPROVED",
         ...(query
           ? {
               content: {
@@ -49,19 +50,18 @@ export default async function LibraryPage({
     })) ?? [];
 
   return (
-    <AppShell title="Public prompt library">
-      <div className="mx-auto w-full max-w-5xl">
-        {prompts === null ? (
-          <div className="rounded-xl border-[0.5px] border-black/10 bg-white p-5 text-sm text-gray-700">
-            Database not reachable. Start Postgres, check your{" "}
-            <code className="rounded bg-gray-100 px-1 py-0.5">DATABASE_URL</code>, and run{" "}
-            <code className="rounded bg-gray-100 px-1 py-0.5">npm run db:migrate</code>.
-          </div>
-        ) : (
-          <SearchAndFilters prompts={data} />
-        )}
-      </div>
-    </AppShell>
+    <div className="mx-auto w-full max-w-5xl">
+      <PageMeta title="Public prompt library" />
+      {prompts === null ? (
+        <div className="rounded-xl border-[0.5px] border-black/10 bg-white p-5 text-sm text-gray-700">
+          Database not reachable. Start Postgres, check your{" "}
+          <code className="rounded bg-gray-100 px-1 py-0.5">DATABASE_URL</code>, and run{" "}
+          <code className="rounded bg-gray-100 px-1 py-0.5">npm run db:migrate</code>.
+        </div>
+      ) : (
+        <SearchAndFilters prompts={data} />
+      )}
+    </div>
   );
 }
 

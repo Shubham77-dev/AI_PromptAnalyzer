@@ -4,6 +4,7 @@ import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { SidebarNavItem } from "@/components/layout/SidebarNavItem";
 import { requireAuth } from "@/app/_lib/auth-guard";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export interface SidebarProps {
   activePath: string;
@@ -28,6 +29,7 @@ function initials(email: string) {
 export function Sidebar({ activePath, userEmail }: Readonly<SidebarProps>) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { refresh } = useAuth();
 
   const avatar = useMemo(() => (userEmail ? initials(userEmail) : "G"), [userEmail]);
 
@@ -38,6 +40,8 @@ export function Sidebar({ activePath, userEmail }: Readonly<SidebarProps>) {
   async function signOut() {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
     globalThis.localStorage?.removeItem("pl_token");
+    globalThis.dispatchEvent(new Event("auth-changed"));
+    await refresh();
     startTransition(() => router.refresh());
   }
 

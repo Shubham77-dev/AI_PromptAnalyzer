@@ -29,6 +29,7 @@ export function AuthControls({
 
     const body = (await res.json()) as { token?: string } | null;
     if (body?.token) globalThis.localStorage.setItem("pl_token", body.token);
+    globalThis.dispatchEvent(new Event("auth-changed"));
 
     startTransition(() => {
       router.push("/dashboard");
@@ -41,6 +42,7 @@ export function AuthControls({
     setError(null);
     await fetch("/api/auth/logout", { method: "POST" });
     globalThis.localStorage.removeItem("pl_token");
+    globalThis.dispatchEvent(new Event("auth-changed"));
     startTransition(() => router.refresh());
   }
 

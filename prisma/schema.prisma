@@ -16,6 +16,12 @@ enum UserRole {
   ADMIN
 }
 
+enum ModerationStatus {
+  APPROVED
+  PENDING
+  REJECTED
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
@@ -32,6 +38,11 @@ model Prompt {
   userId    String
   content   String
   status    PromptStatus @default(DRAFT)
+  moderationStatus ModerationStatus @default(APPROVED)
+  flagged   Boolean      @default(false)
+  reason    String?
+  moderationScore Float?
+  moderationRaw Json?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
@@ -42,6 +53,7 @@ model Prompt {
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([moderationStatus, createdAt])
 }
 
 model PromptAnalysis {
