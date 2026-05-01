@@ -1,6 +1,8 @@
 import { PromptTable } from "@/components/admin/PromptTable";
 import type { AdminPromptsSearchParams } from "@/components/admin/PromptTable";
 import { PromptDetailPanel } from "@/components/admin/PromptDetailPanel";
+import { AdminPromptsTopActions } from "@/components/admin/AdminPromptsTopActions";
+import { PageMeta } from "@/components/layout/PageMeta";
 import { z } from "zod";
 
 export default async function AdminPromptsPage({
@@ -35,10 +37,7 @@ export default async function AdminPromptsPage({
 
   return (
     <div className="grid gap-4">
-      <div>
-        <div className="text-lg font-semibold text-gray-900">Prompts</div>
-        <div className="text-sm text-gray-500">Review and moderate published content.</div>
-      </div>
+      <PageMeta title="Prompt moderation" actions={<AdminPromptsTopActions />} />
 
       {viewId ? <PromptDetailPanel promptId={viewId} closeHref={closeHref} /> : null}
 

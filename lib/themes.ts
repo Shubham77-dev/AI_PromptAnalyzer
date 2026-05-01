@@ -106,6 +106,7 @@ export function getThemeCssVars(name: ThemeName): Record<string, string> {
     "--pa-acc4": t.accent4,
     "--pa-grad": grad,
     "--pa-gradient": grad,
+    "--pa-overlay": "color-mix(in srgb, var(--pa-bg) 45%, var(--pa-sidebar))",
   };
 }
 

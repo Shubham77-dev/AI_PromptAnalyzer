@@ -1,7 +1,11 @@
+import { Suspense } from "react";
+import { z } from "zod";
+import { AdminUsersFilters } from "@/components/admin/AdminUsersFilters";
+import { AdminUsersTopActions } from "@/components/admin/AdminUsersTopActions";
+import { UserDetailPanel } from "@/components/admin/UserDetailPanel";
 import { UserTable } from "@/components/admin/UserTable";
 import type { AdminUsersSearchParams } from "@/components/admin/UserTable";
-import { UserDetailPanel } from "@/components/admin/UserDetailPanel";
-import { z } from "zod";
+import { PageMeta } from "@/components/layout/PageMeta";
 
 export default async function AdminUsersPage({
   searchParams,
@@ -27,23 +31,27 @@ export default async function AdminUsersPage({
   const status: AdminUsersSearchParams["status"] =
     statusValue === "ACTIVE" || statusValue === "SUSPENDED" || statusValue === "all" ? statusValue : "all";
 
+  const flagged = get("flagged") === "1" ? "1" : undefined;
+
   const closeParams = new URLSearchParams();
   const q = get("q");
   if (q) closeParams.set("q", q);
   if (plan !== "all") closeParams.set("plan", plan);
   if (status !== "all") closeParams.set("status", status);
+  if (flagged === "1") closeParams.set("flagged", "1");
   const page = get("page");
   if (page) closeParams.set("page", page);
   const closeHref = `/admin/users${closeParams.toString() ? `?${closeParams.toString()}` : ""}`;
 
   return (
     <div className="grid gap-4">
-      <div>
-        <div className="text-lg font-semibold text-gray-900">Users</div>
-        <div className="text-sm text-gray-500">Manage roles, plans, and access.</div>
-      </div>
+      <PageMeta title="User management" actions={<AdminUsersTopActions />} />
 
       {viewId ? <UserDetailPanel userId={viewId} closeHref={closeHref} /> : null}
+
+      <Suspense fallback={null}>
+        <AdminUsersFilters />
+      </Suspense>
 
       <UserTable
         searchParams={{
@@ -51,9 +59,9 @@ export default async function AdminUsersPage({
           plan,
           status,
           page: get("page"),
+          flagged,
         }}
       />
     </div>
   );
 }
-

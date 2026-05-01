@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Card } from "@/components/ui/Card";
+import { ButtonOutline } from "@/components/ui/ButtonOutline";
 
 type PublishToggleProps = {
   promptId: string;
@@ -24,11 +26,9 @@ export function PublishToggle({
   const isPublished = status === "PUBLISHED";
 
   const classes = useMemo(() => {
-    const base =
-      "inline-flex items-center justify-center rounded-lg font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+    const base = "inline-flex items-center justify-center font-semibold pa-btn-transition";
     const padding = size === "md" ? "px-3 py-2 text-sm" : "px-2.5 py-1.5 text-xs";
-    const colors = isPublished ? "bg-amber-600 text-white hover:bg-amber-700" : "bg-emerald-600 text-white hover:bg-emerald-700";
-    return [base, padding, colors].join(" ");
+    return [base, padding].join(" ");
   }, [isPublished, size]);
 
   async function patch(url: string) {
@@ -75,40 +75,60 @@ export function PublishToggle({
         }}
         className={classes}
         title={title}
+        style={{
+          borderRadius: 8,
+          border: "1px solid var(--pa-card-border)",
+          background: isPublished
+            ? "color-mix(in srgb, var(--pa-acc4) 14%, transparent)"
+            : "color-mix(in srgb, var(--pa-acc2) 14%, transparent)",
+          color: isPublished ? "var(--pa-acc4)" : "var(--pa-acc2)",
+          opacity: isDisabled ? 0.6 : 1,
+          cursor: isDisabled ? "not-allowed" : "pointer",
+        }}
       >
-        {busy ? "Working…" : isPublished ? "Unpublished" : "Published"}
+        {busy ? "Working…" : isPublished ? "Unpublish" : "Publish"}
       </button>
 
       {confirmUnpublishOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl ring-1 ring-black/10">
-            <div className="text-sm font-semibold text-gray-900">Unpublish prompt?</div>
-            <div className="mt-1 text-sm text-gray-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "var(--pa-overlay)" }}>
+          <Card className="w-full max-w-md">
+            <div className="p-5">
+              <div className="text-sm font-semibold" style={{ color: "var(--pa-text)" }}>
+                Unpublish prompt?
+              </div>
+              <div className="mt-1 text-sm" style={{ color: "var(--pa-muted)" }}>
               This will remove the prompt from the public library. You can publish it again later.
-            </div>
+              </div>
 
-            <div className="mt-4 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                onClick={() => setConfirmUnpublishOpen(false)}
-                disabled={busy}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={() => {
-                  setConfirmUnpublishOpen(false);
-                  void doUnpublish();
-                }}
-                disabled={busy}
-              >
-                Yes, unpublish
-              </button>
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <ButtonOutline type="button" onClick={() => setConfirmUnpublishOpen(false)} disabled={busy}>
+                  Cancel
+                </ButtonOutline>
+                <button
+                  type="button"
+                  className="pa-btn-transition"
+                  style={{
+                    borderRadius: 8,
+                    border: "1px solid color-mix(in srgb, var(--pa-acc4) 35%, transparent)",
+                    background: "color-mix(in srgb, var(--pa-acc4) 16%, transparent)",
+                    padding: "6px 12px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--pa-acc4)",
+                    opacity: busy ? 0.6 : 1,
+                    cursor: busy ? "not-allowed" : "pointer",
+                  }}
+                  onClick={() => {
+                    setConfirmUnpublishOpen(false);
+                    void doUnpublish();
+                  }}
+                  disabled={busy}
+                >
+                  Yes, unpublish
+                </button>
+              </div>
             </div>
-          </div>
+          </Card>
         </div>
       ) : null}
     </>
