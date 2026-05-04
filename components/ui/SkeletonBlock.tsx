@@ -1,31 +1,42 @@
-"use client";
-
-export type SkeletonRounded = "sm" | "md" | "lg" | "full";
-
 export interface SkeletonBlockProps {
-  width?: string;
-  height?: string;
-  rounded?: SkeletonRounded;
+  className?: string;
+  height?: number | string;
+  width?: number | string;
+  rounded?: "none" | "sm" | "md" | "lg" | "full";
 }
 
-const ROUNDED: Record<SkeletonRounded, string> = {
-  sm: "rounded-[4px]",
-  md: "rounded-[6px]",
-  lg: "rounded-[12px]",
-  full: "rounded-full",
-};
+function borderRadius(rounded?: SkeletonBlockProps["rounded"]) {
+  switch (rounded) {
+    case "none":
+      return 0;
+    case "sm":
+      return 6;
+    case "md":
+      return 8;
+    case "lg":
+      return 12;
+    case "full":
+      return 9999;
+    default:
+      return 6;
+  }
+}
 
 export function SkeletonBlock({
+  className = "",
+  height = 12,
   width = "100%",
-  height = "12px",
-  rounded = "md",
+  rounded,
 }: Readonly<SkeletonBlockProps>) {
   return (
     <div
-      className={["pa-shimmer", ROUNDED[rounded]].join(" ")}
-      style={{ width, height }}
-      aria-hidden="true"
+      className={`pa-shimmer overflow-hidden ${className}`.trim()}
+      style={{
+        height,
+        width,
+        borderRadius: borderRadius(rounded),
+        backgroundColor: "color-mix(in srgb, var(--pa-acc1) 10%, transparent)",
+      }}
     />
   );
 }
-

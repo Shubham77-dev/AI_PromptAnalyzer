@@ -3,8 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { prismaKnownRequestResponse } from "@/lib/prisma-errors";
-import { getCurrentUser } from "@/lib/auth";
-import { getUserFromAuthorizationHeader } from "@/lib/auth-header";
+import { getCurrentUser, getCurrentUserOrBearer } from "@/lib/auth";
 import { canBypassPromptValidation, canManagePrompt } from "@/lib/rbac";
 import { normalizeOnly, validatePromptForPublish } from "@/lib/prompt-validator";
 import { analyzePrompt } from "@/lib/analyzer";
@@ -217,9 +216,7 @@ const DeleteSchema = z.object({
 
 export async function DELETE(req: Request) {
   try {
-    const authUser = await getUserFromAuthorizationHeader(
-      req.headers.get("authorization"),
-    );
+    const authUser = await getCurrentUserOrBearer(req);
 
     if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

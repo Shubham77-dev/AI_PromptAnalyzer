@@ -1,12 +1,14 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
+import { createContext, useContext, useMemo } from "react";
+import { SessionProvider, useSession } from "next-auth/react";
+import type { Session } from "next-auth";
+import type { UserRole } from "@prisma/client";
 
 export type AuthState =
   | { status: "loading"; user: null }
   | { status: "guest"; user: null }
-  | { status: "authenticated"; user: { email: string } };
+  | { status: "authenticated"; user: { email: string; role: UserRole } };
 
 type AuthContextValue = {
   state: AuthState;
@@ -15,51 +17,38 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-async function fetchMe() {
-  const res = await fetch("/api/auth/me", { method: "GET" }).catch(() => null);
-  if (!res?.ok) return null;
-  const body = (await res.json().catch(() => null)) as { user?: { email: string } | null } | null;
-  return body?.user ?? null;
+function AuthContextInner({ children }: Readonly<{ children: React.ReactNode }>) {
+  const { data: session, status, update } = useSession();
+
+  const state = useMemo<AuthState>(() => {
+    if (status === "loading") return { status: "loading", user: null };
+    const email = session?.user?.email;
+    if (!email) return { status: "guest", user: null };
+    const role = session.user?.role ?? "USER";
+    return { status: "authenticated", user: { email, role } };
+  }, [session, status]);
+
+  const refresh = async () => {
+    await update();
+  };
+
+  const value = useMemo<AuthContextValue>(() => ({ state, refresh }), [state, refresh]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function AuthProvider({
-  initialEmail,
+  session,
   children,
-}: Readonly<{ initialEmail: string | null; children: React.ReactNode }>) {
-  const pathname = usePathname();
-  const [state, setState] = useState<AuthState>(() =>
-    initialEmail ? { status: "authenticated", user: { email: initialEmail } } : { status: "loading", user: null },
+}: Readonly<{
+  session: Session | null;
+  children: React.ReactNode;
+}>) {
+  return (
+    <SessionProvider session={session ?? undefined} basePath="/api/auth">
+      <AuthContextInner>{children}</AuthContextInner>
+    </SessionProvider>
   );
-
-  const refresh = async () => {
-    setState((s) => (s.status === "loading" ? s : { status: "loading", user: null }));
-    const me = await fetchMe();
-    setState(me ? { status: "authenticated", user: me } : { status: "guest", user: null });
-  };
-
-  useEffect(() => {
-    // Defer to avoid synchronous setState-in-effect lint/perf issue.
-    const id = globalThis.setTimeout(() => void refresh(), 0);
-    return () => globalThis.clearTimeout(id);
-  }, []);
-
-  useEffect(() => {
-    // Log + refresh on route change to catch server session updates.
-    console.log("[auth] route:", pathname);
-    void fetchMe().then((me) => {
-      console.log("[auth] me:", me);
-      setState(me ? { status: "authenticated", user: me } : { status: "guest", user: null });
-    });
-  }, [pathname]);
-
-  useEffect(() => {
-    const onChanged = () => void refresh();
-    globalThis.addEventListener("auth-changed", onChanged);
-    return () => globalThis.removeEventListener("auth-changed", onChanged);
-  }, []);
-
-  const value = useMemo<AuthContextValue>(() => ({ state, refresh }), [state]);
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
@@ -67,4 +56,3 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
-

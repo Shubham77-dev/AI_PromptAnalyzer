@@ -26,8 +26,8 @@ export function Toggle({
       onClick={() => !disabled && onChange(!checked)}
       className="relative shrink-0 rounded-full transition-colors duration-200 disabled:opacity-50"
       style={{
-        width: 34,
-        height: 18,
+        width: 32,
+        height: 17,
         background: checked ? "var(--pa-acc1)" : "var(--pa-hint)",
         border: checked ? "none" : "1px solid var(--pa-card-border)",
       }}
@@ -36,8 +36,8 @@ export function Toggle({
         aria-hidden
         className="absolute top-[3px] rounded-full bg-white transition-[left,right] duration-200"
         style={{
-          width: 12,
-          height: 12,
+          width: 11,
+          height: 11,
           left: checked ? undefined : 3,
           right: checked ? 3 : undefined,
         }}

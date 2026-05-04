@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { DeleteButton } from "@/app/_components/DeleteButton";
 import { SuggestionClamp } from "@/app/_components/SuggestionClamp";
-import { RequireLoginGate } from "@/components/layout/RequireLoginGate";
 import { PageMeta } from "@/components/layout/PageMeta";
 import { DashboardMetaActions } from "@/components/dashboard/DashboardMetaActions";
 import { GlowLine } from "@/components/ui/GlowLine";
@@ -14,7 +14,7 @@ import { Card } from "@/components/ui/Card";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
-  if (!user) return <RequireLoginGate />;
+  if (!user) redirect("/login?callbackUrl=/dashboard");
 
   const isAdmin = user.role === "ADMIN";
 

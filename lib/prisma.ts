@@ -17,6 +17,7 @@ function createPrismaClient() {
       return (
         u.searchParams.get("sslmode") === "require" ||
         u.hostname.includes("supabase.com") ||
+        u.hostname.endsWith(".supabase.co") ||
         u.hostname.includes("pooler.supabase.com")
       );
     } catch {

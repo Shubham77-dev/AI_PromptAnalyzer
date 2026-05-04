@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { requireAuth } from "@/app/_lib/auth-guard";
 import { ButtonGradient } from "@/components/ui/ButtonGradient";
@@ -32,6 +32,7 @@ export function UploadScorePanel({
 }>) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [copied, setCopied] = useState(false);
   const b = analysis.breakdown ?? {
     clarity: analysis.score,
     structure: analysis.score,
@@ -71,6 +72,8 @@ export function UploadScorePanel({
 
   async function copyImproved() {
     await globalThis.navigator?.clipboard?.writeText(analysis.improvedPrompt);
+    setCopied(true);
+    globalThis.setTimeout(() => setCopied(false), 900);
   }
 
   return (
@@ -95,8 +98,12 @@ export function UploadScorePanel({
           <ButtonOutline className="flex-1" onClick={saveLibrary} disabled={pending}>
             Save to library
           </ButtonOutline>
-          <ButtonGradient className="flex-1" onClick={copyImproved}>
-            Copy improved
+          <ButtonGradient
+            className="flex-1"
+            onClick={() => void copyImproved()}
+            style={copied ? { backgroundImage: "none", background: "var(--pa-acc2)" } : undefined}
+          >
+            {copied ? "Copied" : "Copy improved"}
           </ButtonGradient>
         </div>
       </Card>

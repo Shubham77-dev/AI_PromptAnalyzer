@@ -7,44 +7,35 @@ export interface ScorePillProps {
 function pillStyle(value: number): CSSProperties {
   if (value >= 80) {
     return {
-      background: "rgba(6,214,160,.15)",
-      color: "#06D6A0",
-      border: "1px solid rgba(6,214,160,.3)",
+      background: "color-mix(in srgb, var(--pa-acc2) 15%, transparent)",
+      color: "var(--pa-acc2)",
+      border: "1px solid color-mix(in srgb, var(--pa-acc2) 30%, transparent)",
     };
   }
   if (value >= 50) {
     return {
-      background: "rgba(123,92,240,.15)",
-      color: "#9B7CF0",
-      border: "1px solid rgba(123,92,240,.3)",
+      background: "color-mix(in srgb, var(--pa-acc1) 15%, transparent)",
+      color: "color-mix(in srgb, var(--pa-acc1) 78%, white)",
+      border: "1px solid color-mix(in srgb, var(--pa-acc1) 30%, transparent)",
     };
   }
   if (value >= 30) {
     return {
-      background: "rgba(255,183,3,.15)",
-      color: "#FFB703",
-      border: "1px solid rgba(255,183,3,.3)",
+      background: "color-mix(in srgb, var(--pa-acc4) 15%, transparent)",
+      color: "var(--pa-acc4)",
+      border: "1px solid color-mix(in srgb, var(--pa-acc4) 30%, transparent)",
     };
   }
   return {
-    background: "rgba(255,107,53,.15)",
-    color: "#FF6B35",
-    border: "1px solid rgba(255,107,53,.3)",
+    background: "color-mix(in srgb, var(--pa-acc3) 15%, transparent)",
+    color: "color-mix(in srgb, var(--pa-acc3) 85%, white)",
+    border: "1px solid color-mix(in srgb, var(--pa-acc3) 30%, transparent)",
   };
 }
 
 export function ScorePill({ value }: Readonly<ScorePillProps>) {
   return (
-    <span
-      className="inline-flex font-medium"
-      style={{
-        fontSize: 11,
-        padding: "2px 10px",
-        borderRadius: 20,
-        fontWeight: 500,
-        ...pillStyle(value),
-      }}
-    >
+    <span className="inline-flex font-medium pa-score-pill" style={pillStyle(value)}>
       {value}
     </span>
   );

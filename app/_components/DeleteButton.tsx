@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { getAuthToken, requireAuth } from "@/app/_lib/auth-guard";
+import { requireAuth } from "@/app/_lib/auth-guard";
 
 export function DeleteButton({ promptId }: Readonly<{ promptId: string }>) {
   const router = useRouter();
@@ -16,17 +16,11 @@ export function DeleteButton({ promptId }: Readonly<{ promptId: string }>) {
 
     const didRun = await requireAuth(
       async () => {
-        const token = getAuthToken();
-        if (!token) {
-          setError("Missing auth token. Please sign in again.");
-          return;
-        }
-
         const res = await fetch("/api/prompt", {
           method: "DELETE",
+          credentials: "include",
           headers: {
             "content-type": "application/json",
-            authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ promptId }),
         });

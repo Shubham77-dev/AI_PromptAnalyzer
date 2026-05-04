@@ -1,6 +1,6 @@
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { RequireLoginGate } from "@/components/layout/RequireLoginGate";
 import { PageMeta } from "@/components/layout/PageMeta";
 import { UploadWorkspace } from "@/components/upload/UploadWorkspace";
 import { UploadHistoryAction } from "@/components/upload/UploadHistoryAction";
@@ -8,7 +8,7 @@ import type { RecentPromptRow } from "@/components/upload/uploadTypes";
 
 export default async function UploadPage() {
   const user = await getCurrentUser();
-  if (!user) return <RequireLoginGate />;
+  if (!user) redirect("/login?callbackUrl=/upload");
 
   const rows = await prisma.prompt
     .findMany({

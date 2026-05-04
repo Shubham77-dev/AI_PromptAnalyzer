@@ -11,6 +11,7 @@ export interface ButtonGradientProps {
   fullWidth?: boolean;
   className?: string;
   type?: "button" | "submit";
+  style?: CSSProperties;
 }
 
 export function ButtonGradient({
@@ -21,10 +22,11 @@ export function ButtonGradient({
   fullWidth,
   className = "",
   type = "button",
+  style,
 }: Readonly<ButtonGradientProps>) {
   const base: CSSProperties = {
     backgroundImage: "var(--pa-grad)",
-    color: "#fff",
+    color: "white",
     border: "none",
     borderRadius: fullWidth ? 10 : 8,
     padding: fullWidth ? "10px 14px" : "5px 14px",
@@ -33,6 +35,7 @@ export function ButtonGradient({
     width: fullWidth ? "100%" : undefined,
     opacity: disabled ? 0.6 : 1,
     cursor: disabled ? "not-allowed" : "pointer",
+    ...style,
   };
 
   const hoverCls = "pa-btn-transition hover:opacity-90";

@@ -6,23 +6,22 @@ import { Card } from "@/components/ui/Card";
 import { CardHeader } from "@/components/ui/CardHeader";
 import { Spinner } from "@/components/ui/Spinner";
 
-const MAX = 20_000;
+const MAX = 2000;
 
 const CHIPS: { label: string; text: string }[] = [
   { label: "+ Role", text: "You are a " },
   { label: "+ Task", text: "Your task is to " },
   { label: "+ Format", text: "Return the result as " },
-  { label: "+ Tone", text: "Use a professional tone. " },
   { label: "+ Example", text: "\nExample:\nInput: ...\nOutput: ...\n\n" },
 ];
 
 function UploadOrb() {
   return (
     <div
-      className="mx-auto grid h-10 w-10 place-items-center rounded-xl pa-float-orb"
-      style={{ backgroundImage: "var(--pa-grad)" }}
+      className="mx-auto grid place-items-center pa-float-orb"
+      style={{ background: "var(--pa-grad)", width: 40, height: 40, borderRadius: 12 }}
     >
-      <svg width={20} height={20} viewBox="0 0 20 20" aria-hidden>
+      <svg width={18} height={18} viewBox="0 0 20 20" aria-hidden>
         <path
           d="M10 13V5M10 5L7 8M10 5l3 3"
           stroke="white"
@@ -67,7 +66,7 @@ export function UploadLeftColumn({
 
   return (
     <Card>
-      <CardHeader title="Upload file" />
+      <CardHeader title="Upload or paste" />
       <div className="p-4">
         <input
           ref={inputRef}
@@ -82,8 +81,8 @@ export function UploadLeftColumn({
           className="w-full border-2 border-dashed text-center transition-colors"
           style={{
             borderColor: "var(--pa-hint)",
-            borderRadius: 12,
-            padding: 24,
+            borderRadius: 10,
+            padding: 20,
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.borderColor = "var(--pa-acc1)";
@@ -93,27 +92,11 @@ export function UploadLeftColumn({
           }}
         >
           <UploadOrb />
-          <div className="mt-3 font-medium" style={{ fontSize: 13, color: "var(--pa-text)" }}>
-            Drop file or browse
+          <div className="mt-3 text-xs font-medium" style={{ color: "var(--pa-text)" }}>
+            Drop file or click to browse
           </div>
-          <div className="mt-1" style={{ fontSize: 11, color: "var(--pa-muted)" }}>
-            Plain text, markdown, or JSON
-          </div>
-          <div className="mt-3 flex flex-wrap justify-center gap-2">
-            {[".txt", ".md", ".json"].map((x) => (
-              <span
-                key={x}
-                style={{
-                  fontSize: 10,
-                  padding: "2px 8px",
-                  borderRadius: 20,
-                  border: "1px solid var(--pa-hint)",
-                  color: "var(--pa-muted)",
-                }}
-              >
-                {x}
-              </span>
-            ))}
+          <div className="mt-1 text-[10px]" style={{ color: "var(--pa-muted)" }}>
+            .txt .md .json — up to 2 MB
           </div>
         </button>
 
@@ -128,11 +111,11 @@ export function UploadLeftColumn({
           onChange={(e) => setContent(e.target.value.slice(0, MAX))}
           className="w-full resize-none font-mono outline-none"
           style={{
-            minHeight: 100,
+            minHeight: 80,
             background: "var(--pa-hint)",
             border: "1px solid var(--pa-card-border)",
-            borderRadius: 10,
-            padding: "10px 12px",
+            borderRadius: 8,
+            padding: "8px 12px",
             fontSize: 11,
             color: "var(--pa-text)",
           }}
@@ -144,11 +127,11 @@ export function UploadLeftColumn({
           }}
         />
 
-        <div className="mt-2 flex justify-between" style={{ fontSize: 10, color: "var(--pa-muted)" }}>
+        <div className="mt-2 flex justify-between text-[10px]">
           <span style={{ color: len > 20 ? "var(--pa-acc2)" : "var(--pa-muted)" }}>
-            {len > 20 ? "Ready to analyze" : "\u00a0"}
+            {len > 20 ? "Ready to analyze" : "Start typing..."}
           </span>
-          <span>
+          <span style={{ color: "var(--pa-muted)" }}>
             {len} / {MAX}
           </span>
         </div>
@@ -162,7 +145,7 @@ export function UploadLeftColumn({
               className="transition-colors"
               style={{
                 fontSize: 10,
-                padding: "4px 10px",
+                padding: "3px 9px",
                 borderRadius: 20,
                 border: "1px solid var(--pa-hint)",
                 color: "var(--pa-muted)",
@@ -189,7 +172,12 @@ export function UploadLeftColumn({
         ) : null}
 
         <div className="mt-4">
-          <ButtonGradient fullWidth disabled={!can} onClick={onAnalyze}>
+          <ButtonGradient
+            fullWidth
+            disabled={!can}
+            onClick={onAnalyze}
+            className="rounded-[10px] py-2 text-xs"
+          >
             {isAnalyzing ? (
               <span className="inline-flex items-center justify-center gap-2">
                 <Spinner size="sm" /> Analyzing...

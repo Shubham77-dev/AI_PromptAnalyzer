@@ -1,6 +1,5 @@
-import FullPageLoader from "@/components/ui/FullPageLoader";
+import RouteLoading from "@/components/app/RouteLoading";
 
 export default function Loading() {
-  return <FullPageLoader />;
+  return <RouteLoading />;
 }
-

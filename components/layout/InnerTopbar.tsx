@@ -9,7 +9,7 @@ export interface InnerTopbarProps {
 
 export function InnerTopbar({ title, actions }: Readonly<InnerTopbarProps>) {
   return (
-    <div className="pa-transition sticky top-0 z-10 h-[52px] border-b border-[var(--pa-card-border)] bg-[var(--pa-card)]">
+    <div className="pa-transition sticky top-0 z-10 h-12 border-b border-[var(--pa-sb-border)] bg-[var(--pa-sidebar)]">
       <div className="flex h-full items-center justify-between gap-3 px-4">
         <div className="text-[15px] font-medium" style={{ color: "var(--pa-text)" }}>
           {title}
