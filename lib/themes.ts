@@ -1,4 +1,4 @@
-export type ThemeName = "aurora" | "ocean" | "sunset" | "forest";
+export type ThemeName = "light" | "aurora" | "ocean" | "sunset" | "forest";
 
 export interface ThemeTokens {
   bg: string;
@@ -11,6 +11,15 @@ export interface ThemeTokens {
 }
 
 export const THEMES: Record<ThemeName, ThemeTokens> = {
+  light: {
+    bg: "#F8F8F7",
+    accent1: "#534AB7",
+    accent2: "#0F6E56",
+    accent3: "#993556",
+    accent4: "#854F0B",
+    gradientFrom: "#534AB7",
+    gradientTo: "#7B5CF0",
+  },
   aurora: {
     bg: "#0D0D1A",
     accent1: "#7B5CF0",
@@ -51,7 +60,7 @@ export const THEMES: Record<ThemeName, ThemeTokens> = {
 
 export const THEME_LIST = Object.keys(THEMES) as ThemeName[];
 
-export const DEFAULT_THEME_NAME: ThemeName = "aurora";
+export const DEFAULT_THEME_NAME: ThemeName = "light";
 
 export const PA_THEME_STORAGE_KEY = "pa-theme";
 
@@ -84,6 +93,27 @@ export function isThemeName(value: string): value is ThemeName {
 
 /** CSS variables for :root (keys include `--` prefix). */
 export function getThemeCssVars(name: ThemeName): Record<string, string> {
+  if (name === "light") {
+    const grad = "linear-gradient(135deg, #534AB7 0%, #7B5CF0 100%)";
+    return {
+      "--pa-bg": "#F8F8F7",
+      "--pa-sidebar": "#FFFFFF",
+      "--pa-card": "#FFFFFF",
+      "--pa-card-border": "rgba(0, 0, 0, 0.08)",
+      "--pa-sb-border": "rgba(0, 0, 0, 0.08)",
+      "--pa-hint": "#F3F4F6",
+      "--pa-text": "#1A1A1A",
+      "--pa-muted": "#6B7280",
+      "--pa-acc1": "#534AB7",
+      "--pa-acc2": "#0F6E56",
+      "--pa-acc3": "#993556",
+      "--pa-acc4": "#854F0B",
+      "--pa-grad": grad,
+      "--pa-gradient": grad,
+      "--pa-overlay": "color-mix(in srgb, var(--pa-bg) 45%, var(--pa-sidebar))",
+    };
+  }
+
   const t = THEMES[name];
   const sidebar = mixHex(t.bg, "#000000", 0.38);
   const card = mixHex(t.bg, "#ffffff", 0.065);

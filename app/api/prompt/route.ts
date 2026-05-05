@@ -6,7 +6,13 @@ import { prismaKnownRequestResponse } from "@/lib/prisma-errors";
 import { getCurrentUser, getCurrentUserOrBearer } from "@/lib/auth";
 import { canBypassPromptValidation, canManagePrompt } from "@/lib/rbac";
 import { normalizeOnly, validatePromptForPublish } from "@/lib/prompt-validator";
-import { analyzePrompt } from "@/lib/analyzer";
+import { runUnifiedPromptAnalysis } from "@/lib/prompt-analysis";
+import {
+  buildPromptAnalysisRow,
+  resolveSavePersistence,
+  saveDebugSnapshot,
+  type SaveIntent,
+} from "@/lib/prompt-save-state";
 
 const AnalysisSchema = z
   .object({
@@ -27,6 +33,9 @@ const HybridAnalysisSchema = z
 
 const CreateSchema = z.object({
   content: z.string().min(1).max(20_000),
+  /** `publish` mirrors legacy behavior; `draft` always stores a private draft. */
+  saveIntent: z.enum(["draft", "publish"]).optional().default("publish"),
+  /** Ignored for scoring — server always recomputes with the hybrid pipeline. */
   analysis: z.union([AnalysisSchema, HybridAnalysisSchema]).optional(),
 });
 
@@ -44,57 +53,30 @@ export async function POST(req: Request) {
       );
     }
 
-    // Saving is allowed even if publish-validation fails; those prompts go to manual review.
     const normalized = normalizeOnly(parsed.data.content);
     const publishValidation = canBypassPromptValidation(user)
-      ? { ok: true as const }
+      ? { ok: true as const, normalized }
       : validatePromptForPublish(parsed.data.content);
 
-    const analysis = await (async () => {
-      if (!publishValidation.ok) {
-        return {
-          status: "pending" as const,
-          score: 0,
-          flags: ["prompt_validation_failed"],
-          aiDetails: {
-            skippedAi: true,
-            reason: "prompt_validation_failed",
-            issues: publishValidation.issues,
-          },
-        };
-      }
+    const saveIntent = parsed.data.saveIntent as SaveIntent;
 
-      try {
-        return await analyzePrompt(normalized);
-      } catch (e) {
-        console.error("[api/prompt] analyzer failed; saving as pending", e);
-        return {
-          status: "pending" as const,
-          score: 0,
-          flags: ["analyzer_error"],
-          aiDetails: {
-            aiError: e instanceof Error ? e.message : "Unknown analyzer error",
-            pendingReview: true,
-          },
-        };
-      }
-    })();
+    const { hybrid, heuristics } = await runUnifiedPromptAnalysis(normalized);
+    console.log("[analyzer-pipeline] unified save snapshot:", {
+      saveIntent,
+      pipelineStatus: hybrid.status,
+      decisionScore: hybrid.score,
+      publishValidationOk: publishValidation.ok,
+    });
 
-    const moderationStatus =
-      analysis.status === "approved"
-        ? ("APPROVED" as const)
-        : analysis.status === "pending"
-          ? ("PENDING" as const)
-          : ("REJECTED" as const);
+    const persistence = resolveSavePersistence({
+      hybrid,
+      publishValidation,
+      saveIntent,
+    });
 
-    const nextStatus =
-      moderationStatus === "APPROVED"
-        ? ("PUBLISHED" as const)
-        : moderationStatus === "PENDING"
-          ? ("UNDER_REVIEW" as const)
-          : ("DRAFT" as const);
-
-    const flagged = moderationStatus !== "APPROVED";
+    const moderationStatus = persistence.moderationStatus;
+    const nextStatus = persistence.nextStatus;
+    const flagged = persistence.flagged;
 
     // Best-effort de-dupe: avoid duplicate submissions on reload/double-click.
     const recentDuplicate = await prisma.prompt.findFirst({
@@ -117,6 +99,8 @@ export async function POST(req: Request) {
       });
     }
 
+    const analysisRow = buildPromptAnalysisRow(hybrid, heuristics);
+
     const created = await prisma.prompt.create({
       data: {
         userId: user.id,
@@ -124,68 +108,37 @@ export async function POST(req: Request) {
         status: nextStatus,
         moderationStatus,
         flagged,
-        reason:
-          typeof analysis.aiDetails === "object" &&
-          analysis.aiDetails &&
-          "scores" in analysis.aiDetails &&
-          typeof (analysis.aiDetails as { scores?: { reason?: unknown } }).scores?.reason === "string"
-            ? String((analysis.aiDetails as { scores?: { reason?: unknown } }).scores?.reason).slice(0, 2000)
-            : moderationStatus === "APPROVED"
-              ? "Passed hybrid prompt analyzer."
-              : moderationStatus === "PENDING"
-                ? "Saved for admin review."
-                : "Rejected by automated checks.",
-        score: analysis.score,
-        flags: analysis.flags,
-        aiDetails: analysis.aiDetails ? (analysis.aiDetails as Prisma.InputJsonValue) : Prisma.DbNull,
+        reason: persistence.reason,
+        score: hybrid.score,
+        flags: persistence.flags,
+        aiDetails: hybrid.aiDetails ? (hybrid.aiDetails as Prisma.InputJsonValue) : Prisma.DbNull,
+        moderationScore: hybrid.score,
+        moderationRaw: hybrid.aiDetails ? (hybrid.aiDetails as Prisma.InputJsonValue) : Prisma.DbNull,
         stats: { create: {} },
-        ...(parsed.data.analysis
-          ? {
-              analysis: {
-                create: (() => {
-                  const a = parsed.data.analysis as
-                    | { accuracy: number; clarity: number; suggestions: string }
-                    | { score: number; issues: string[]; suggestions: string[]; improvedPrompt: string };
-
-                  if ("accuracy" in a) return a;
-
-                  const suggestionsText = [
-                    `Score: ${a.score}`,
-                    a.issues.length ? `Issues:\n- ${a.issues.join("\n- ")}` : "",
-                    a.suggestions.length ? `Suggestions:\n- ${a.suggestions.join("\n- ")}` : "",
-                    `Improved prompt:\n${a.improvedPrompt}`,
-                  ]
-                    .filter(Boolean)
-                    .join("\n\n")
-                    .slice(0, 10_000);
-
-                  return {
-                    accuracy: a.score,
-                    clarity: a.score,
-                    suggestions: suggestionsText,
-                  };
-                })(),
-              },
-            }
-          : {}),
+        analysis: { create: analysisRow },
       },
       include: { analysis: true, stats: true },
     });
 
+    const publishGateFailed = !publishValidation.ok && saveIntent === "publish";
+    const debug =
+      process.env.ANALYZER_DEBUG === "1" || process.env.ANALYZER_PIPELINE_DEBUG === "1"
+        ? saveDebugSnapshot({
+            hybrid,
+            persistence,
+            publishGateFailed,
+          })
+        : undefined;
+
     return NextResponse.json({
-      // Legacy
       ok: true,
       prompt: created,
-      // New structured format
       success: true,
       moderationStatus,
       status: nextStatus,
-      message:
-        moderationStatus === "APPROVED"
-          ? "Saved and published."
-          : moderationStatus === "PENDING"
-            ? "Saved and submitted for admin review."
-            : "Saved (rejected).",
+      outcome: persistence.outcome,
+      message: persistence.userMessage,
+      ...(debug ? { debug } : {}),
     });
   } catch (e) {
     const mapped = prismaKnownRequestResponse(e);

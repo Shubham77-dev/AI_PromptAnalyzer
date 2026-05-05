@@ -322,15 +322,9 @@ export function UserTableContent({
               {filteredUsers.map((user) => (
                 <tr
                   key={user.id}
-                  className="pa-transition hover:opacity-80"
+                  className="pa-transition pa-table-row"
                   style={{
                     borderBottom: "1px solid var(--pa-card-border)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--pa-hint)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
                   }}
                 >
                   <td className="p-4">

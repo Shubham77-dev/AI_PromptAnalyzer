@@ -12,6 +12,15 @@ import { ScoreRing } from "@/components/ui/ScoreRing";
 import { UploadSuggestionsBlock } from "@/components/upload/UploadSuggestionsBlock";
 import type { AnalysisPayload } from "@/components/upload/uploadTypes";
 
+type SaveOutcome = "published" | "under_review" | "rejected" | "draft_saved";
+
+type SaveApiResponse = {
+  message?: string;
+  outcome?: SaveOutcome;
+  debug?: Record<string, unknown>;
+  error?: string;
+};
+
 function barsFromBreakdown(b: NonNullable<AnalysisPayload["breakdown"]>) {
   return [
     { label: "Accuracy", value: b.accuracy, color: "var(--pa-acc1)" },
@@ -33,6 +42,12 @@ export function UploadScorePanel({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
+  const [saveResult, setSaveResult] = useState<{
+    message: string;
+    outcome: SaveOutcome | "unknown";
+    debug?: Record<string, unknown>;
+  } | null>(null);
+
   const b = analysis.breakdown ?? {
     clarity: analysis.score,
     structure: analysis.score,
@@ -41,8 +56,11 @@ export function UploadScorePanel({
     accuracy: analysis.score,
   };
 
-  async function saveLibrary() {
+  const canAutoPublish = Boolean(analysis.moderation?.canAutoPublish);
+
+  async function saveToLibrary(saveIntent: "draft" | "publish") {
     onError(null);
+    setSaveResult(null);
     const ok = await requireAuth(
       async () => {
         const res = await fetch("/api/prompt", {
@@ -50,20 +68,25 @@ export function UploadScorePanel({
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             content,
-            analysis: {
-              score: analysis.score,
-              issues: analysis.issues,
-              suggestions: analysis.suggestions,
-              improvedPrompt: analysis.improvedPrompt,
-            },
+            saveIntent,
           }),
         });
+        const body = (await res.json().catch(() => null)) as SaveApiResponse | null;
         if (!res.ok) {
-          const body = (await res.json().catch(() => null)) as { error?: string } | null;
           onError(body?.error || "Save failed");
           return;
         }
-        startTransition(() => router.push("/dashboard"));
+        const outcome = body?.outcome ?? "unknown";
+        const message =
+          body?.message ??
+          (outcome === "published"
+            ? "Your prompt has been published successfully."
+            : "Your prompt was saved.");
+        setSaveResult({
+          message,
+          outcome,
+          debug: body?.debug,
+        });
       },
       { router },
     );
@@ -76,8 +99,47 @@ export function UploadScorePanel({
     globalThis.setTimeout(() => setCopied(false), 900);
   }
 
+  function feedbackToneFor(outcome: SaveOutcome | "unknown") {
+    if (outcome === "published") {
+      return { bg: "rgba(34,197,94,0.12)", border: "rgba(34,197,94,0.35)", color: "var(--pa-acc2)" };
+    }
+    if (outcome === "rejected") {
+      return { bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.35)", color: "var(--pa-acc3)" };
+    }
+    return { bg: "var(--pa-hint)", border: "var(--pa-card-border)", color: "var(--pa-muted)" };
+  }
+
+  const debugPayload = saveResult?.debug ?? analysis.debug;
+
   return (
     <div className="flex flex-col gap-3" style={{ animation: "pa-fadein 0.45s ease forwards" }}>
+      {saveResult ? (
+        (() => {
+          const tone = feedbackToneFor(saveResult.outcome);
+          return (
+            <Card>
+              <div className="p-4" style={{ background: tone.bg, borderBottom: `1px solid ${tone.border}` }}>
+                <div style={{ fontSize: 13, color: tone.color, lineHeight: 1.5 }}>{saveResult.message}</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <ButtonOutline
+                    type="button"
+                    onClick={() => {
+                      startTransition(() => router.push("/dashboard"));
+                    }}
+                    disabled={pending}
+                  >
+                    Go to dashboard
+                  </ButtonOutline>
+                  <ButtonOutline type="button" onClick={() => setSaveResult(null)} disabled={pending}>
+                    Continue editing
+                  </ButtonOutline>
+                </div>
+              </div>
+            </Card>
+          );
+        })()
+      ) : null}
+
       <Card>
         <CardHeader
           title="Score"
@@ -85,6 +147,15 @@ export function UploadScorePanel({
         />
         <div className="p-4">
           <ScoreRing score={analysis.score} />
+          {analysis.moderation ? (
+            <p className="mt-3" style={{ fontSize: 11, color: "var(--pa-muted)", lineHeight: 1.5 }}>
+              This is the same blended score used when you save. Auto-publish when the pipeline status is{" "}
+              <strong>approved</strong> (blended score &gt;{" "}
+              <strong>{analysis.moderation.autoPublishThresholdExclusive}</strong>). Yours:{" "}
+              <strong>{analysis.moderation.pipelineStatus}</strong>
+              {canAutoPublish ? " — eligible for Save & publish." : " — use Submit for review or save as draft."}
+            </p>
+          ) : null}
           <div className="mt-4 grid gap-1">
             {barsFromBreakdown(b).map((row) => (
               <ScoreBar key={row.label} label={row.label} value={row.value} color={row.color} />
@@ -92,21 +163,54 @@ export function UploadScorePanel({
           </div>
         </div>
         <div
-          className="flex gap-2 border-t"
+          className="flex flex-col gap-2 border-t"
           style={{ borderColor: "var(--pa-card-border)", padding: "10px 14px" }}
         >
-          <ButtonOutline className="flex-1" onClick={saveLibrary} disabled={pending}>
-            Save to library
-          </ButtonOutline>
-          <ButtonGradient
-            className="flex-1"
-            onClick={() => void copyImproved()}
-            style={copied ? { backgroundImage: "none", background: "var(--pa-acc2)" } : undefined}
-          >
-            {copied ? "Copied" : "Copy improved"}
-          </ButtonGradient>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <ButtonOutline className="flex-1" onClick={() => void saveToLibrary("draft")} disabled={pending}>
+              Save as draft
+            </ButtonOutline>
+            <span
+              className="flex-1 min-w-0"
+              title={
+                canAutoPublish
+                  ? "Publishes immediately if strict role/task/output checks pass."
+                  : "Sends to the library under admin review (same score as shown here)."
+              }
+            >
+              <ButtonGradient
+                className="w-full"
+                onClick={() => void saveToLibrary("publish")}
+                disabled={pending}
+              >
+                {canAutoPublish ? "Save & publish" : "Submit for review"}
+              </ButtonGradient>
+            </span>
+          </div>
+          <div style={{ fontSize: 10, color: "var(--pa-muted)", lineHeight: 1.45 }}>
+            {canAutoPublish
+              ? "Save & publish goes live when your prompt also passes the strict checklist (role, task, output format)."
+              : "Submit for review keeps this session’s score for moderation. Save as draft keeps the prompt private."}
+          </div>
         </div>
       </Card>
+
+      {debugPayload ? (
+        <Card>
+          <CardHeader title="Debug (publish decision)" />
+          <pre
+            className="max-h-48 overflow-auto p-3 whitespace-pre-wrap"
+            style={{
+              fontSize: 10,
+              fontFamily: "var(--font-geist-mono), monospace",
+              color: "var(--pa-muted)",
+              borderTop: "1px solid var(--pa-card-border)",
+            }}
+          >
+            {JSON.stringify(debugPayload, null, 2)}
+          </pre>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader title="Suggestions" />
@@ -129,6 +233,11 @@ export function UploadScorePanel({
           >
             {analysis.improvedPrompt}
           </pre>
+        </div>
+        <div className="p-3 pt-0">
+          <ButtonOutline className="w-full" onClick={() => void copyImproved()}>
+            {copied ? "Copied" : "Copy improved"}
+          </ButtonOutline>
         </div>
       </Card>
     </div>

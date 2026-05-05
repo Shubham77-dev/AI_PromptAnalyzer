@@ -68,14 +68,7 @@ export function AdminSidebar({ activePath, userEmail, flaggedCount }: Readonly<A
           <span className="truncate text-[15px] font-medium" style={{ color: "var(--pa-text)" }}>
             PromptAnalyzer
           </span>
-          <span
-            className="ml-auto shrink-0 rounded-full px-1.5 py-0.5 font-semibold"
-            style={{
-              fontSize: 9,
-              background: "rgba(255,107,53,.18)",
-              color: "var(--pa-acc4)",
-            }}
-          >
+          <span className="pa-admin-badge ml-auto shrink-0 rounded-full px-1.5 py-0.5 font-semibold" style={{ fontSize: 9 }}>
             Admin
           </span>
         </div>

@@ -1,21 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0d0d1a;
-  --foreground: rgba(248, 248, 252, 0.96);
-  --pa-bg: #0d0d1a;
-  --pa-sidebar: #080810;
-  --pa-card: #1d1d29;
-  --pa-card-border: rgba(255, 255, 255, 0.09);
-  --pa-sb-border: rgba(255, 255, 255, 0.1);
-  --pa-hint: rgba(255, 255, 255, 0.12);
-  --pa-text: rgba(248, 248, 252, 0.96);
-  --pa-muted: rgba(200, 200, 220, 0.72);
-  --pa-acc1: #7b5cf0;
-  --pa-acc2: #06d6a0;
-  --pa-acc3: #ff6b9d;
-  --pa-acc4: #ffb703;
-  --pa-grad: linear-gradient(135deg, #7b5cf0 0%, #ff6b9d 100%);
+  --background: #f8f8f7;
+  --foreground: #1a1a1a;
+  --pa-bg: #f8f8f7;
+  --pa-sidebar: #ffffff;
+  --pa-card: #ffffff;
+  --pa-card-border: rgba(0, 0, 0, 0.08);
+  --pa-sb-border: rgba(0, 0, 0, 0.08);
+  --pa-hint: #f3f4f6;
+  --pa-text: #1a1a1a;
+  --pa-muted: #6b7280;
+  --pa-acc1: #534ab7;
+  --pa-acc2: #0f6e56;
+  --pa-acc3: #993556;
+  --pa-acc4: #854f0b;
+  --pa-grad: linear-gradient(135deg, #534ab7 0%, #7b5cf0 100%);
   --pa-gradient: var(--pa-grad);
   --pa-overlay: color-mix(in srgb, var(--pa-bg) 45%, var(--pa-sidebar));
 }
@@ -55,6 +55,28 @@ body {
 .pa-sidebar-nav.is-active {
   background: color-mix(in srgb, var(--pa-acc1) 24%, transparent);
   color: var(--pa-acc1);
+}
+
+.pa-danger-zone {
+  border: 1px solid color-mix(in srgb, var(--pa-acc3) 35%, transparent);
+}
+
+.pa-danger-zone__header {
+  background: rgba(255, 107, 53, 0.12);
+  color: var(--pa-acc4);
+}
+
+.pa-admin-badge {
+  background: rgba(255, 107, 53, 0.18);
+  color: var(--pa-acc4);
+}
+
+.pa-score-bar-track {
+  background: var(--pa-hint);
+}
+
+tr.pa-table-row:hover {
+  background: var(--pa-hint);
 }
 
 .pa-card-transition {
@@ -189,6 +211,75 @@ button.pa-admin-suspend:hover:not(:disabled) {
   background: var(--pa-card);
   border: 1px solid var(--pa-card-border);
   border-radius: 12px;
+}
+
+html.theme-light .pa-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+html.theme-light .pa-sidebar-nav.is-active {
+  background: #eeedfe;
+  color: #534ab7;
+}
+
+html.theme-light .pa-toggle-track[data-on="false"] {
+  background: #e5e7eb;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+html.theme-light .pa-gline {
+  opacity: 0.5;
+}
+
+html.theme-light .pa-input {
+  background: #f9fafb;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+html.theme-light tr.pa-table-row:hover {
+  background: #f9fafb;
+}
+
+html.theme-light .pa-score-pill[data-tier="high"] {
+  background: #e1f5ee !important;
+  color: #0f6e56 !important;
+  border: 1px solid #9fe1cb !important;
+}
+
+html.theme-light .pa-score-pill[data-tier="mid"] {
+  background: #eeedfe !important;
+  color: #534ab7 !important;
+  border: 1px solid #afa9ec !important;
+}
+
+html.theme-light .pa-score-pill[data-tier="low"] {
+  background: #faeeda !important;
+  color: #854f0b !important;
+  border: 1px solid #fac775 !important;
+}
+
+html.theme-light .pa-score-pill[data-tier="poor"] {
+  background: #faece7 !important;
+  color: #993c1d !important;
+  border: 1px solid #f0997b !important;
+}
+
+html.theme-light .pa-admin-badge {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+html.theme-light .pa-danger-zone {
+  border-color: #fecaca;
+}
+
+html.theme-light .pa-danger-zone__header {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+html.theme-light .pa-score-bar-track {
+  background: #e5e7eb;
 }
 
 .pa-gline {

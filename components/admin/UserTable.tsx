@@ -171,7 +171,7 @@ export async function UserTable({ searchParams }: Readonly<{ searchParams: Admin
               return (
                 <tr
                   key={u.id}
-                  className="pa-transition hover:bg-[var(--pa-hint)]"
+                  className="pa-transition pa-table-row"
                   style={{ borderBottom: "1px solid var(--pa-card-border)" }}
                 >
                   <td className="px-4 py-3">

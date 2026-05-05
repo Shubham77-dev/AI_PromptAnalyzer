@@ -4,6 +4,13 @@ export interface ScorePillProps {
   value: number;
 }
 
+function scoreTier(value: number): "high" | "mid" | "low" | "poor" {
+  if (value >= 80) return "high";
+  if (value >= 50) return "mid";
+  if (value >= 30) return "low";
+  return "poor";
+}
+
 function pillStyle(value: number): CSSProperties {
   if (value >= 80) {
     return {
@@ -35,7 +42,7 @@ function pillStyle(value: number): CSSProperties {
 
 export function ScorePill({ value }: Readonly<ScorePillProps>) {
   return (
-    <span className="inline-flex font-medium pa-score-pill" style={pillStyle(value)}>
+    <span className="inline-flex font-medium pa-score-pill" data-tier={scoreTier(value)} style={pillStyle(value)}>
       {value}
     </span>
   );

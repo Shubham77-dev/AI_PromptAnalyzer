@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { SeeMoreText } from "@/components/ui/SeeMoreText";
 import { PublishToggle } from "@/components/admin/PublishToggle";
 import { adminRemovePrompt } from "@/app/admin/actions";
 import { adminRejectPrompt } from "@/app/admin/review/actions";
@@ -132,9 +133,14 @@ export async function PromptDetailPanel({
           <div className="mt-3 text-xs font-semibold text-red-700">Reason: {prompt.reason}</div>
         ) : null}
 
-        <div className="mt-4 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm text-gray-800 ring-1 ring-black/5">
-          {prompt.content}
-        </div>
+        <SeeMoreText
+          text={prompt.content}
+          collapsedMaxHeightPx={280}
+          className="mt-4"
+          contentClassName="rounded-lg bg-gray-50 p-4 text-sm text-gray-800 ring-1 ring-black/5"
+          buttonClassName="!text-gray-700"
+          buttonStyle={{ color: "#374151" }}
+        />
 
         {prompt.flags?.length ? (
           <div className="mt-3 text-xs text-gray-600">
@@ -153,11 +159,15 @@ export async function PromptDetailPanel({
               <div className="mt-0.5 text-sm font-semibold text-gray-900">{prompt.analysis.clarity}</div>
             </div>
             <div className="rounded-lg bg-white p-3 ring-1 ring-black/10">
-              <div className="text-[11px] font-semibold text-gray-600">Suggestions (preview)</div>
-              <div className="mt-0.5 whitespace-pre-wrap text-xs text-gray-800">
-                {prompt.analysis.suggestions.slice(0, 320)}
-                {prompt.analysis.suggestions.length > 320 ? "…" : ""}
-              </div>
+              <div className="text-[11px] font-semibold text-gray-600">Suggestions</div>
+              <SeeMoreText
+                text={prompt.analysis.suggestions}
+                collapsedMaxHeightPx={120}
+                className="mt-0.5"
+                contentClassName="whitespace-pre-wrap text-xs text-gray-800"
+                buttonClassName="!text-gray-700"
+                buttonStyle={{ color: "#374151" }}
+              />
             </div>
           </div>
         ) : null}

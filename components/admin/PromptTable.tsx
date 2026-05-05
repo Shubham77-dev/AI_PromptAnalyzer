@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { adminRemovePrompt } from "@/app/admin/actions";
 import { PublishToggle } from "@/components/admin/PublishToggle";
 import { Card } from "@/components/ui/Card";
+import { SeeMoreText } from "@/components/ui/SeeMoreText";
 import { ButtonOutline } from "@/components/ui/ButtonOutline";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 
@@ -251,14 +252,16 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
                 <ButtonOutline href={viewHref(searchParams, p.id)}>View</ButtonOutline>
               </div>
 
-              <div
-                className="mt-3 max-h-36 overflow-hidden whitespace-pre-wrap break-words text-sm leading-6"
-                style={{ color: "var(--pa-text)" }}
-              >
-                <span style={{ fontFamily: "var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace", color: "var(--pa-muted)" }}>
-                  {truncate(p.content, 320)}
-                </span>
-              </div>
+              <SeeMoreText
+                text={p.content}
+                collapsedMaxHeightPx={144}
+                className="mt-3"
+                contentClassName="text-sm leading-6"
+                contentStyle={{
+                  color: "var(--pa-muted)",
+                  fontFamily: "var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace",
+                }}
+              />
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <div className="flex-1">
@@ -334,7 +337,7 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
               return (
                 <tr
                   key={p.id}
-                  className="pa-transition hover:bg-[var(--pa-hint)]"
+                  className="pa-transition pa-table-row"
                   style={{ borderBottom: "1px solid var(--pa-card-border)" }}
                 >
                   <td className="px-4 py-3">
@@ -364,10 +367,7 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
                   <td className="px-4 py-3">
                     {typeof score === "number" ? (
                       <div className="flex items-center gap-2">
-                        <div
-                          className="overflow-hidden rounded"
-                          style={{ width: 60, height: 3, background: "var(--pa-hint)" }}
-                        >
+                        <div className="pa-score-bar-track overflow-hidden rounded" style={{ width: 60, height: 3 }}>
                           <div
                             style={{
                               width: `${Math.max(0, Math.min(100, score))}%`,

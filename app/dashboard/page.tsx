@@ -11,6 +11,7 @@ import { ScoreBar } from "@/components/ui/ScoreBar";
 import { ScoreRing } from "@/components/ui/ScoreRing";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
+import { SeeMoreText } from "@/components/ui/SeeMoreText";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -132,7 +133,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4">
+      <div id="your-prompts" className="grid gap-4">
         {prompts === null ? (
           <div className="rounded-xl p-6" style={{ border: "1px solid var(--pa-card-border)", background: "var(--pa-card)" }}>
             <span style={{ color: "var(--pa-muted)" }}>Database not reachable.</span>
@@ -181,12 +182,17 @@ export default async function DashboardPage() {
                     ) : null}
                   </div>
 
-                  <div
-                    className="mt-3 max-h-40 overflow-hidden whitespace-pre-wrap rounded-xl p-3 font-mono text-sm"
-                    style={{ border: "1px solid var(--pa-card-border)", background: "var(--pa-bg)", color: "var(--pa-text)" }}
-                  >
-                    {p.content}
-                  </div>
+                  <SeeMoreText
+                    text={p.content}
+                    collapsedMaxHeightPx={160}
+                    className="mt-3"
+                    contentClassName="rounded-xl p-3 font-mono text-sm"
+                    contentStyle={{
+                      border: "1px solid var(--pa-card-border)",
+                      background: "var(--pa-bg)",
+                      color: "var(--pa-text)",
+                    }}
+                  />
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-xl p-3" style={{ border: "1px solid var(--pa-card-border)" }}>

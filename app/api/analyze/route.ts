@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { analyzePromptQuality } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
+import { runUnifiedPromptAnalysis } from "@/lib/prompt-analysis";
 import {
   checkAndIncrementDailyUsage,
   DAILY_LIMIT_GUEST,
@@ -11,10 +11,11 @@ import {
 
 const BodySchema = z.object({
   content: z.string().min(1).max(20_000),
+  /** When true, response includes a small debug object (same fields shape as after save). */
+  debug: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
-  // Optional auth: guests can analyze (limited), saving/publishing requires login.
   const user = await getCurrentUser().catch(() => null);
   const limit = user ? DAILY_LIMIT_USER : DAILY_LIMIT_GUEST;
   const ip = getClientIp(req);
@@ -41,16 +42,23 @@ export async function POST(req: Request) {
     );
   }
 
-  const result = await analyzePromptQuality(parsed.data.content);
+  const includeDebug =
+    parsed.data.debug === true ||
+    process.env.ANALYZER_DEBUG === "1" ||
+    process.env.ANALYZER_PIPELINE_DEBUG === "1";
+
+  const { preview } = await runUnifiedPromptAnalysis(parsed.data.content, { includeDebug });
+
   return NextResponse.json({
-    score: result.score,
-    issues: result.issues,
-    suggestions: result.suggestions,
-    improvedPrompt: result.improvedPrompt,
-    source: result.source,
-    breakdown: result.breakdown,
-    missingParts: result.missingParts,
+    score: preview.score,
+    issues: preview.issues,
+    suggestions: preview.suggestions,
+    improvedPrompt: preview.improvedPrompt,
+    source: preview.source,
+    breakdown: preview.breakdown,
+    missingParts: preview.missingParts,
+    moderation: preview.moderation,
+    ...(preview.debug ? { debug: preview.debug } : {}),
     usage: { limit, remaining: usage.remaining },
   });
 }
-

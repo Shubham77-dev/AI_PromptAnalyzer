@@ -24,24 +24,11 @@ export function Toggle({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => !disabled && onChange(!checked)}
-      className="relative shrink-0 rounded-full transition-colors duration-200 disabled:opacity-50"
-      style={{
-        width: 32,
-        height: 17,
-        background: checked ? "var(--pa-acc1)" : "var(--pa-hint)",
-        border: checked ? "none" : "1px solid var(--pa-card-border)",
-      }}
+      className="pa-toggle-track relative shrink-0 rounded-full transition-colors duration-200 disabled:opacity-50"
+      data-on={checked ? "true" : "false"}
+      style={{ width: 32, height: 17 }}
     >
-      <span
-        aria-hidden
-        className="absolute top-[3px] rounded-full bg-white transition-[left,right] duration-200"
-        style={{
-          width: 11,
-          height: 11,
-          left: checked ? undefined : 3,
-          right: checked ? 3 : undefined,
-        }}
-      />
+      <span className="pa-toggle-knob" aria-hidden />
     </button>
   );
 }

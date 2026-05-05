@@ -32,7 +32,10 @@ export function UploadWorkspace({ recent }: Readonly<{ recent: RecentPromptRow[]
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({
+          content,
+          ...(process.env.NODE_ENV === "development" ? { debug: true } : {}),
+        }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;

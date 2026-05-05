@@ -4,30 +4,19 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { prismaKnownRequestResponse } from "@/lib/prisma-errors";
 import { getCurrentUser } from "@/lib/auth";
-import { analyzePrompt } from "@/lib/analyzer";
 import { canBypassPromptValidation } from "@/lib/rbac";
 import { normalizeOnly, validatePromptForPublish } from "@/lib/prompt-validator";
+import { runUnifiedPromptAnalysis } from "@/lib/prompt-analysis";
+import {
+  resolveSavePersistence,
+  saveDebugSnapshot,
+  type SaveIntent,
+} from "@/lib/prompt-save-state";
 
 const BodySchema = z.object({
   content: z.string().min(1).max(20_000),
+  saveIntent: z.enum(["draft", "publish"]).optional().default("publish"),
 });
-
-function buildReason(analysis: Awaited<ReturnType<typeof analyzePrompt>>): string {
-  const ad = analysis.aiDetails;
-  if (ad && typeof ad === "object" && "scores" in ad) {
-    const scores = (ad as { scores?: { reason?: string } }).scores;
-    if (scores?.reason?.trim()) return scores.reason.trim();
-  }
-  if (ad && typeof ad === "object" && "skippedAi" in ad && ad.skippedAi) {
-    return "Rejected by automated rule validation.";
-  }
-  if (ad && typeof ad === "object" && "aiError" in ad) {
-    return "AI analysis unavailable; prompt saved for manual review.";
-  }
-  if (analysis.status === "approved") return "Passed hybrid prompt analyzer.";
-  if (analysis.status === "pending") return "Queued for review based on analyzer score.";
-  return "Did not meet publication threshold.";
-}
 
 export async function POST(req: Request) {
   try {
@@ -43,64 +32,31 @@ export async function POST(req: Request) {
       );
     }
 
-    // Do not block saving on strict publish-validation; invalid content goes to review.
     const normalized = normalizeOnly(parsed.data.content);
     const publishValidation = canBypassPromptValidation(user)
-      ? { ok: true as const }
+      ? { ok: true as const, normalized }
       : validatePromptForPublish(parsed.data.content);
 
-    const analysis = await (async () => {
-      if (!publishValidation.ok) {
-        return {
-          status: "pending" as const,
-          score: 0,
-          flags: ["prompt_validation_failed"],
-          aiDetails: {
-            skippedAi: true,
-            reason: "prompt_validation_failed",
-            issues: publishValidation.issues,
-          },
-        };
-      }
+    const saveIntent = parsed.data.saveIntent as SaveIntent;
 
-      try {
-        return await analyzePrompt(normalized);
-      } catch (e) {
-        console.error("[prompts/create] analyzer failed; saving as pending", e);
-        return {
-          status: "pending" as const,
-          score: 0,
-          flags: ["analyzer_error"],
-          aiDetails: {
-            aiError: e instanceof Error ? e.message : "Unknown analyzer error",
-            pendingReview: true,
-          },
-        };
-      }
-    })();
-
-    console.log("[analyzer-pipeline] decision:", {
-      status: analysis.status,
-      score: analysis.score,
-      flags: analysis.flags,
+    const { hybrid } = await runUnifiedPromptAnalysis(normalized);
+    console.log("[prompts/create] unified snapshot:", {
+      saveIntent,
+      pipelineStatus: hybrid.status,
+      decisionScore: hybrid.score,
+      publishValidationOk: publishValidation.ok,
     });
 
-    let moderationStatus: "APPROVED" | "PENDING" | "REJECTED";
-    if (analysis.status === "approved") moderationStatus = "APPROVED";
-    else if (analysis.status === "pending") moderationStatus = "PENDING";
-    else moderationStatus = "REJECTED";
+    const persistence = resolveSavePersistence({
+      hybrid,
+      publishValidation,
+      saveIntent,
+    });
 
-    const reason = buildReason(analysis);
-    const flagged = moderationStatus !== "APPROVED";
+    const moderationStatus = persistence.moderationStatus;
+    const nextStatus = persistence.nextStatus;
+    const flagged = persistence.flagged;
 
-    const nextStatus =
-      moderationStatus === "APPROVED"
-        ? ("PUBLISHED" as const)
-        : moderationStatus === "PENDING"
-          ? ("UNDER_REVIEW" as const)
-          : ("DRAFT" as const);
-
-    // Best-effort de-dupe: avoid duplicate submissions on reload/double-click.
     const recentDuplicate = await prisma.prompt.findFirst({
       where: {
         userId: user.id,
@@ -114,7 +70,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         prompt: recentDuplicate,
-        analysis,
+        analysis: hybrid,
         success: true,
         moderationStatus: recentDuplicate.moderationStatus,
         status: recentDuplicate.status,
@@ -128,12 +84,12 @@ export async function POST(req: Request) {
       status: nextStatus,
       moderationStatus,
       flagged,
-      reason,
-      score: analysis.score,
-      flags: analysis.flags,
-      aiDetails: analysis.aiDetails ? (analysis.aiDetails as Prisma.InputJsonValue) : Prisma.DbNull,
-      moderationScore: analysis.score,
-      moderationRaw: analysis.aiDetails ? (analysis.aiDetails as Prisma.InputJsonValue) : Prisma.DbNull,
+      reason: persistence.reason,
+      score: hybrid.score,
+      flags: persistence.flags,
+      aiDetails: hybrid.aiDetails ? (hybrid.aiDetails as Prisma.InputJsonValue) : Prisma.DbNull,
+      moderationScore: hybrid.score,
+      moderationRaw: hybrid.aiDetails ? (hybrid.aiDetails as Prisma.InputJsonValue) : Prisma.DbNull,
     };
 
     const created = await prisma.prompt.create({
@@ -141,21 +97,26 @@ export async function POST(req: Request) {
       include: { stats: true },
     });
 
+    const publishGateFailed = !publishValidation.ok && saveIntent === "publish";
+    const debug =
+      process.env.ANALYZER_DEBUG === "1" || process.env.ANALYZER_PIPELINE_DEBUG === "1"
+        ? saveDebugSnapshot({
+            hybrid,
+            persistence,
+            publishGateFailed,
+          })
+        : undefined;
+
     return NextResponse.json({
-      // Legacy
       ok: true,
       prompt: created,
-      analysis,
-      // New structured response format
+      analysis: hybrid,
       success: true,
       moderationStatus,
       status: nextStatus,
-      message:
-        moderationStatus === "APPROVED"
-          ? "Saved and published."
-          : moderationStatus === "PENDING"
-            ? "Saved and submitted for admin review."
-            : "Saved (rejected).",
+      outcome: persistence.outcome,
+      message: persistence.userMessage,
+      ...(debug ? { debug } : {}),
     });
   } catch (e) {
     const mapped = prismaKnownRequestResponse(e);

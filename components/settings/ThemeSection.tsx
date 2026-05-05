@@ -4,6 +4,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { THEME_LIST, themeLabel, type ThemeName } from "@/lib/themes";
 
 const PREVIEW: Record<ThemeName, string> = {
+  light: "linear-gradient(135deg,#534AB7,#7B5CF0)",
   aurora: "linear-gradient(135deg,#7B5CF0,#FF6B9D)",
   ocean: "linear-gradient(135deg,#00B4D8,#06D6A0)",
   sunset: "linear-gradient(135deg,#FF6B35,#FF006E)",

@@ -16,10 +16,7 @@ export function ScoreBar({ label, value, color, compact }: Readonly<ScoreBarProp
       >
         {label}
       </span>
-      <div
-        className="min-w-0 flex-1 overflow-hidden rounded"
-        style={{ height: 4, background: "var(--pa-hint)" }}
-      >
+      <div className="pa-score-bar-track min-w-0 flex-1 overflow-hidden rounded" style={{ height: 4 }}>
         <div
           style={{
             height: 4,

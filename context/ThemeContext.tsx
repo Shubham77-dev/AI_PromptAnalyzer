@@ -42,6 +42,11 @@ function applyCssVars(name: ThemeName) {
   const root = globalThis.document?.documentElement;
   if (!root) return;
   root.classList.add("pa-theme-animate");
+  if (name === "light") {
+    root.classList.add("theme-light");
+  } else {
+    root.classList.remove("theme-light");
+  }
   const vars = getThemeCssVars(name);
   for (const [k, v] of Object.entries(vars)) {
     root.style.setProperty(k, v);

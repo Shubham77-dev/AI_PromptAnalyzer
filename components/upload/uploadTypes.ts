@@ -6,13 +6,26 @@ export type AnalysisBreakdown = {
   accuracy: number;
 };
 
+export type AnalysisModerationMeta = {
+  pipelineStatus: "approved" | "pending" | "rejected";
+  canAutoPublish: boolean;
+  autoPublishThresholdExclusive: number;
+};
+
 export type AnalysisPayload = {
   score: number;
   issues: string[];
   suggestions: string[];
   improvedPrompt: string;
-  source?: "ai" | "rules" | "merged";
+  source?: "ai" | "rules" | "merged" | "hybrid+heuristics";
   breakdown?: AnalysisBreakdown;
+  missingParts?: {
+    roleMissing: boolean;
+    vagueInstruction: boolean;
+    outputFormatMissing: boolean;
+  };
+  moderation?: AnalysisModerationMeta;
+  debug?: Record<string, unknown>;
 };
 
 export type RecentPromptRow = {

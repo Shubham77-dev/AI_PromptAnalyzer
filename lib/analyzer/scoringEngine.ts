@@ -3,6 +3,9 @@ export type FinalDecision = "approved" | "pending" | "rejected";
 const RULE_WEIGHT = 0.3;
 const AI_WEIGHT = 0.7;
 
+/** Blended score must be strictly greater than this to auto-approve (i.e. 76+). */
+export const AUTO_PUBLISH_THRESHOLD_EXCLUSIVE = 75;
+
 export function calculateFinalScore(ruleScore: number, aiScore: number): {
   finalScore: number;
   decision: FinalDecision;
@@ -12,7 +15,7 @@ export function calculateFinalScore(ruleScore: number, aiScore: number): {
   const finalScore = Math.round(r * RULE_WEIGHT + a * AI_WEIGHT);
 
   let decision: FinalDecision;
-  if (finalScore > 75) decision = "approved";
+  if (finalScore > AUTO_PUBLISH_THRESHOLD_EXCLUSIVE) decision = "approved";
   else if (finalScore >= 50) decision = "pending";
   else decision = "rejected";
 

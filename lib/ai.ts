@@ -104,7 +104,8 @@ function hasExamples(content: string) {
   return /\b(example|for example|e\.g\.)\b/i.test(content);
 }
 
-function ruleBasedAnalyze(content: string): AnalyzerResult {
+/** Local heuristic analysis (no network). Used to enrich preview text alongside the hybrid pipeline. */
+export function analyzePromptHeuristics(content: string): AnalyzerResult {
   const text = content.trim();
   const len = text.length;
 
@@ -342,7 +343,7 @@ async function openAiAnalyze(content: string): Promise<AnalyzerResult | null> {
 }
 
 export async function analyzePromptQuality(content: string): Promise<AnalyzerResult> {
-  const rules = ruleBasedAnalyze(content);
+  const rules = analyzePromptHeuristics(content);
   const ai = await openAiAnalyze(content);
 
   if (!ai) {
