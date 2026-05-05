@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { CardHeader } from "@/components/ui/CardHeader";
 import { ScoreBar } from "@/components/ui/ScoreBar";
 import { ScoreRing } from "@/components/ui/ScoreRing";
+import { Spinner } from "@/components/ui/Spinner";
 import { UploadSuggestionsBlock } from "@/components/upload/UploadSuggestionsBlock";
 import type { AnalysisPayload } from "@/components/upload/uploadTypes";
 
@@ -42,6 +43,7 @@ export function UploadScorePanel({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
+  const [saveIntentPending, setSaveIntentPending] = useState<"draft" | "publish" | null>(null);
   const [saveResult, setSaveResult] = useState<{
     message: string;
     outcome: SaveOutcome | "unknown";
@@ -57,10 +59,14 @@ export function UploadScorePanel({
   };
 
   const canAutoPublish = Boolean(analysis.moderation?.canAutoPublish);
+  const publishLabel = canAutoPublish ? "Save & publish" : "Submit for review";
+  const publishPendingLabel = canAutoPublish ? "Saving & publishing…" : "Submitting…";
 
   async function saveToLibrary(saveIntent: "draft" | "publish") {
     onError(null);
     setSaveResult(null);
+    if (saveIntentPending) return;
+    setSaveIntentPending(saveIntent);
     const ok = await requireAuth(
       async () => {
         const res = await fetch("/api/prompt", {
@@ -90,6 +96,7 @@ export function UploadScorePanel({
       },
       { router },
     );
+    setSaveIntentPending(null);
     if (!ok) return;
   }
 
@@ -167,8 +174,19 @@ export function UploadScorePanel({
           style={{ borderColor: "var(--pa-card-border)", padding: "10px 14px" }}
         >
           <div className="flex flex-col gap-2 sm:flex-row">
-            <ButtonOutline className="flex-1" onClick={() => void saveToLibrary("draft")} disabled={pending}>
-              Save as draft
+            <ButtonOutline
+              className="flex-1"
+              onClick={() => void saveToLibrary("draft")}
+              disabled={pending || saveIntentPending !== null}
+            >
+              {saveIntentPending === "draft" ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Spinner size="sm" />
+                  Saving draft…
+                </span>
+              ) : (
+                "Save as draft"
+              )}
             </ButtonOutline>
             <span
               className="flex-1 min-w-0"
@@ -181,9 +199,16 @@ export function UploadScorePanel({
               <ButtonGradient
                 className="w-full"
                 onClick={() => void saveToLibrary("publish")}
-                disabled={pending}
+                disabled={pending || saveIntentPending !== null}
               >
-                {canAutoPublish ? "Save & publish" : "Submit for review"}
+                {saveIntentPending === "publish" ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <Spinner size="sm" />
+                    {publishPendingLabel}
+                  </span>
+                ) : (
+                  publishLabel
+                )}
               </ButtonGradient>
             </span>
           </div>

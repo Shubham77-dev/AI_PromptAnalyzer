@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { CardHeader } from "@/components/ui/CardHeader";
 import { Spinner } from "@/components/ui/Spinner";
 
-const MAX = 2000;
+const MAX = 4000;
 
 const CHIPS: { label: string; text: string }[] = [
   { label: "+ Role", text: "You are a " },

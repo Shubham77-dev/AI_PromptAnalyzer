@@ -1,8 +1,13 @@
 import OpenAI from "openai";
 import { z } from "zod";
+import { cleanImprovedPrompt } from "@/lib/clean-improved-prompt";
+import { analyzePromptDeterministic } from "@/lib/deterministic-analyzer";
 
 const AnalyzerResultSchema = z.object({
   score: z.number().int().min(0).max(100),
+  promptType: z.enum(["simple", "instruction", "structured", "creative", "technical"]).optional(),
+  strengths: z.array(z.string().min(1)).max(20).optional(),
+  weaknesses: z.array(z.string().min(1)).max(20).optional(),
   issues: z.array(z.string().min(1)).max(20),
   suggestions: z.array(z.string().min(1)).max(20),
   improvedPrompt: z.string().min(1).max(30_000),
@@ -78,7 +83,7 @@ function hasOutputDirective(content: string) {
 }
 
 function hasStructure(content: string) {
-  return /(^|\n)\s*(#{1,3}\s+|\d+[\).]\s+|- )/m.test(content);
+  return /(^|\n)\s*(#{1,3}\s+|\d+[.)]\s+|- )/m.test(content);
 }
 
 function hasSpecificity(content: string) {
@@ -104,130 +109,19 @@ function hasExamples(content: string) {
   return /\b(example|for example|e\.g\.)\b/i.test(content);
 }
 
-/** Local heuristic analysis (no network). Used to enrich preview text alongside the hybrid pipeline. */
+/** Local deterministic analysis (no network). Used to enrich preview text alongside the hybrid pipeline. */
 export function analyzePromptHeuristics(content: string): AnalyzerResult {
-  const text = content.trim();
-  const len = text.length;
-
-  const issues: string[] = [];
-  const suggestions: string[] = [];
-
-  let score = 55;
-  const breakdown = {
-    clarity: 55,
-    structure: 50,
-    specificity: 50,
-    outputDefinition: 50,
-    accuracy: 60,
-  };
-
-  if (len < 30) {
-    score -= 20;
-    breakdown.clarity -= 20;
-    issues.push("Prompt is very short; the intent and constraints are ambiguous.");
-    suggestions.push("Add the goal, constraints, and the exact output format you want.");
-  } else if (len < 80) {
-    score -= 10;
-    breakdown.clarity -= 10;
-    issues.push("Prompt lacks detail for consistent results.");
-    suggestions.push("Add context (audience, domain, input structure) and success criteria.");
-  } else if (len > 3000) {
-    score -= 8;
-    breakdown.structure -= 8;
-    issues.push("Prompt is very long; important constraints may be buried.");
-    suggestions.push("Add headings and a short summary of requirements at the top.");
-  } else {
-    score += 4;
-    breakdown.clarity += 4;
-  }
-
-  const roleMissing = !hasRole(text);
-  if (!roleMissing) {
-    score += 6;
-    breakdown.clarity += 6;
-  } else {
-    issues.push("No explicit role or perspective is defined.");
-    suggestions.push('Start with a role like: "You are a senior <role>…"');
-  }
-
-  const outputFormatMissing = !hasOutputFormat(text) || !hasOutputDirective(text);
-  if (!outputFormatMissing) {
-    score += 10;
-    breakdown.outputDefinition += 14;
-  } else {
-    issues.push("No explicit output format is specified.");
-    suggestions.push('Specify output format, e.g. "Return JSON with keys …" or "Use bullets".');
-  }
-
-  if (hasConstraints(text)) score += 10;
-  else {
-    issues.push("Constraints are missing (tone, length, exclusions, must-haves).");
-    suggestions.push("Add constraints: tone, length, what to avoid, and what to include.");
-  }
-
-  if (hasStructure(text)) breakdown.structure += 12;
-  else suggestions.push("Add simple structure (headings or numbered steps) to make constraints obvious.");
-
-  if (hasSpecificity(text)) breakdown.specificity += 12;
-  else suggestions.push("Add measurable details (limits, must-haves, exclusions) to reduce ambiguity.");
-
-  if (hasExamples(text)) score += 6;
-  else {
-    suggestions.push("Add a small example input/output to reduce ambiguity.");
-  }
-
-  // Specificity hints
-  if (/\b(api|sql|react|next\.js|prisma|postgres|supabase|python|node)\b/i.test(text)) {
-    score += 6;
-  } else {
-    suggestions.push("Mention the exact tools/stack (e.g., Next.js, Prisma, Postgres) if relevant.");
-  }
-
-  score = clampInt(score);
-  const vagueInstruction = isVagueInstruction(text);
-  if (vagueInstruction) {
-    issues.push("Instruction is vague; it’s unclear what success looks like.");
-    suggestions.push("Specify the exact task, target audience, and what to include/exclude.");
-    breakdown.clarity = clampInt(breakdown.clarity - 12);
-  }
-
-  const missingParts = {
-    roleMissing,
-    vagueInstruction,
-    outputFormatMissing,
-  };
-
-  const clampedBreakdown = {
-    clarity: clampInt(breakdown.clarity),
-    structure: clampInt(breakdown.structure),
-    specificity: clampInt(breakdown.specificity),
-    outputDefinition: clampInt(breakdown.outputDefinition),
-    accuracy: clampInt(breakdown.accuracy),
-  };
-
-  const improvedPrompt = [
-    "You are an expert assistant.",
-    "",
-    "## Goal",
-    text,
-    "",
-    "## Requirements",
-    "- Provide a precise, actionable answer.",
-    "- Ask clarifying questions only if truly necessary.",
-    "- Follow any constraints (tone/length/output format).",
-    "",
-    "## Output format",
-    "- Use bullet points for steps.",
-    "- Include code blocks when relevant.",
-  ].join("\n");
-
+  const det = analyzePromptDeterministic(content);
   return {
-    score,
-    issues: uniq(issues).slice(0, 12),
-    suggestions: uniq(suggestions).slice(0, 12),
-    improvedPrompt,
-    breakdown: clampedBreakdown,
-    missingParts,
+    score: clampInt(det.score),
+    promptType: det.promptType,
+    strengths: det.strengths,
+    weaknesses: det.weaknesses,
+    issues: uniq(det.issues).slice(0, 12),
+    suggestions: uniq(det.suggestions).slice(0, 12),
+    improvedPrompt: cleanImprovedPrompt(det.improvedPrompt),
+    breakdown: det.breakdown,
+    missingParts: det.missingParts,
     source: "rules",
   };
 }
@@ -245,6 +139,8 @@ async function openAiAnalyze(content: string): Promise<AnalyzerResult | null> {
     "You MUST return ONLY valid JSON that matches the schema.",
     "Be concrete and actionable. No generic advice.",
     "Keep the improved prompt intent identical to the original.",
+    "The improvedPrompt must be clean and structured. Do not repeat sections or headings.",
+    "Do not append multiple templates. Each heading (Goal, Context, Requirements, Constraints, Output format) must appear at most once.",
   ].join(" ");
 
   const user = [
@@ -334,6 +230,7 @@ async function openAiAnalyze(content: string): Promise<AnalyzerResult | null> {
       score: clampInt(parsed.score),
       issues: uniq(parsed.issues).slice(0, 12),
       suggestions: uniq(parsed.suggestions).slice(0, 12),
+      improvedPrompt: cleanImprovedPrompt(parsed.improvedPrompt),
       source: "ai",
     };
   } catch (e) {
@@ -351,29 +248,19 @@ export async function analyzePromptQuality(content: string): Promise<AnalyzerRes
     return rules;
   }
 
-  // Merge: keep AI as primary, but add any missing rule-based suggestions.
-  const mergedSuggestions = uniq([...ai.suggestions, ...rules.suggestions]).slice(0, 12);
-  const mergedIssues = uniq([...ai.issues, ...rules.issues]).slice(0, 12);
-
-  const breakdown = ai.breakdown
-    ? {
-        clarity: clampInt(ai.breakdown.clarity),
-        structure: clampInt(ai.breakdown.structure),
-        specificity: clampInt(ai.breakdown.specificity),
-        outputDefinition: clampInt(ai.breakdown.outputDefinition),
-        accuracy: clampInt(ai.breakdown.accuracy),
-      }
-    : rules.breakdown;
-
-  const missingParts = ai.missingParts ?? rules.missingParts;
+  // Merge: deterministic score remains source of truth; AI only enhances text artifacts.
+  const mergedSuggestions = uniq([...rules.suggestions, ...ai.suggestions]).slice(0, 12);
+  const mergedIssues = uniq([...rules.issues, ...ai.issues]).slice(0, 12);
+  const improvedPrompt = cleanImprovedPrompt(ai.improvedPrompt || rules.improvedPrompt);
 
   return {
-    ...ai,
+    score: rules.score,
     issues: mergedIssues,
     suggestions: mergedSuggestions,
-    breakdown,
-    missingParts,
-    source: mergedSuggestions.length === ai.suggestions.length ? "ai" : "merged",
+    improvedPrompt,
+    breakdown: rules.breakdown,
+    missingParts: rules.missingParts,
+    source: "merged",
   };
 }
 

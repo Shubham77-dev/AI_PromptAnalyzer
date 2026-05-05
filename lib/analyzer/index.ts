@@ -17,6 +17,16 @@ export type HybridAnalyzeResult = {
   status: "approved" | "pending" | "rejected";
   score: number;
   flags: string[];
+  /**
+   * "rule" when AI was skipped/unavailable; "rule+ai" when blended with AI.
+   * This is safe to expose to API consumers.
+   */
+  source: "rule" | "rule+ai";
+  /**
+   * "ok" when AI contributed to the blend; "error" when AI was unavailable;
+   * "skipped" when AI was intentionally not used (e.g. severe rule failure).
+   */
+  aiStatus: "ok" | "error" | "skipped";
   aiDetails?: Record<string, unknown>;
 };
 
@@ -32,6 +42,8 @@ export async function analyzePrompt(content: string): Promise<HybridAnalyzeResul
       status: "rejected" as const,
       score: finalScore,
       flags: rules.flags,
+      source: "rule",
+      aiStatus: "skipped",
       aiDetails: {
         skippedAi: true,
         reason: "severe_rule_failure",
@@ -43,46 +55,44 @@ export async function analyzePrompt(content: string): Promise<HybridAnalyzeResul
   const routed = selectModel(content);
   const ai = await analyzeWithAI(content, routed.modelId);
 
-  let aiScoreForBlend: number;
-  let aiDetails: Record<string, unknown>;
-
-  if (ai.ok) {
-    aiScoreForBlend = ai.scores.finalScore;
-    aiDetails = {
-      provider: routed.provider,
-      model: ai.model,
-      scores: ai.scores,
-    };
-  } else {
-    // Policy: never hard-fail the request — queue for review with conservative score
-    console.error("[analyzer-pipeline] AI unavailable; using fallback:", ai.error);
-    aiScoreForBlend = ai.fallbackAiScore;
-    aiDetails = {
-      provider: routed.provider,
-      modelAttempted: routed.modelId,
-      aiError: ai.error,
-      fallbackAiScore: ai.fallbackAiScore,
-      pendingReview: true,
+  if (!ai.ok) {
+    // AI failure must not corrupt the outcome. Use rule score as the final score.
+    console.error("[analyzer-pipeline] AI unavailable; using rule-only score:", ai.error);
+    const ruleOnlyScore = clampHybridScore(rules.score);
+    const { decision } = calculateFinalScore(ruleOnlyScore, ruleOnlyScore);
+    return {
+      status: decision,
+      score: ruleOnlyScore,
+      flags: Array.from(new Set([...rules.flags, "analyzer_error"])),
+      source: "rule",
+      aiStatus: "error",
+      aiDetails: {
+        provider: routed.provider,
+        modelAttempted: routed.modelId,
+        aiError: ai.error,
+        ruleScore: rules.score,
+      },
     };
   }
 
-  // When rules did not pass minimum bar, still blend but bias toward rules (already reflected in low rule score)
-  if (!rules.passed && ai.ok) {
-    aiDetails = {
-      ...aiDetails,
-      ruleWarnings: rules.flags,
-    };
+  const aiDetails: Record<string, unknown> = {
+    provider: routed.provider,
+    model: ai.model,
+    scores: ai.scores,
+  };
+
+  if (!rules.passed) {
+    aiDetails.ruleWarnings = rules.flags;
   }
 
-  const { finalScore, decision } = calculateFinalScore(rules.score, aiScoreForBlend);
-
-  // API outage / parse failure: always queue for human review (never auto-approve without AI signal)
-  const status: HybridAnalyzeResult["status"] = ai.ok ? decision : "pending";
+  const { finalScore, decision } = calculateFinalScore(rules.score, ai.scores.finalScore);
 
   return {
-    status,
+    status: decision,
     score: finalScore,
     flags: rules.flags,
+    source: "rule+ai",
+    aiStatus: "ok",
     aiDetails,
   };
 }
@@ -98,16 +108,14 @@ export async function analyzePromptWithRecovery(content: string): Promise<Hybrid
     console.error("[analyzer-pipeline] analyzePrompt threw; using rule-only recovery", e);
     const rules = analyzeWithRules(content);
     const { finalScore, decision } = calculateFinalScore(rules.score, rules.score);
-    const status: HybridAnalyzeResult["status"] = rules.severeFailure
-      ? "rejected"
-      : decision === "rejected"
-        ? "rejected"
-        : "pending";
-    const score = rules.severeFailure ? clampHybridScore(finalScore) : Math.max(1, clampHybridScore(finalScore));
+    const status: HybridAnalyzeResult["status"] = rules.severeFailure ? "rejected" : decision;
+    const score = clampHybridScore(rules.score);
     return {
       status,
       score,
       flags: Array.from(new Set([...rules.flags, "analyzer_exception"])),
+      source: "rule",
+      aiStatus: "error",
       aiDetails: {
         aiError: errMsg,
         recover: true,

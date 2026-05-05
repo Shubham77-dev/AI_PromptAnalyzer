@@ -4,23 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageMeta } from "@/components/layout/PageMeta";
 import { ProfileSection } from "@/components/settings/ProfileSection";
-import { BillingSection } from "@/components/settings/BillingSection";
-import { PreferencesSection } from "@/components/settings/PreferencesSection";
-import { NotificationsSection } from "@/components/settings/NotificationsSection";
-import { ApiSection } from "@/components/settings/ApiSection";
 import { ThemeSection } from "@/components/settings/ThemeSection";
 import { ButtonGradient } from "@/components/ui/ButtonGradient";
-import type { DefaultSort, DigestFrequency, SettingsDraft } from "@/components/settings/settingsDraft";
+import type { SettingsDraft } from "@/components/settings/settingsDraft";
 
 const STORAGE_KEY = "promptAnalyzer.settings.v1";
 
 const SECTIONS = [
   { id: "theme", label: "Themes" },
   { id: "profile", label: "Profile" },
-  { id: "billing", label: "Billing" },
-  { id: "preferences", label: "Preferences" },
-  { id: "notifications", label: "Notifications" },
-  { id: "api", label: "API & keys" },
 ] as const;
 
 export type SectionId = (typeof SECTIONS)[number]["id"];
@@ -70,13 +62,6 @@ function randomToken(bytes: number) {
   return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function maskKey(raw: string): string {
-  if (raw.length <= 12) return "••••••••";
-  const start = raw.slice(0, 8);
-  const end = raw.slice(-4);
-  return `${start}${"•".repeat(8)}${end}`;
-}
-
 function loadDraft(initialEmail: string): SettingsDraft {
   try {
     const raw = globalThis.localStorage?.getItem(STORAGE_KEY);
@@ -123,14 +108,7 @@ export function SettingsPageClient({ initialEmail }: Readonly<{ initialEmail: st
 
   const activeSection: SectionId = useMemo(() => {
     const s = sectionParam ?? "profile";
-    if (
-      s === "theme" ||
-      s === "profile" ||
-      s === "billing" ||
-      s === "preferences" ||
-      s === "notifications" ||
-      s === "api"
-    ) {
+    if (s === "theme" || s === "profile") {
       return s;
     }
     return "profile";
@@ -173,17 +151,6 @@ export function SettingsPageClient({ initialEmail }: Readonly<{ initialEmail: st
       /* placeholder — auth/account deletion not wired */
     }
   }, []);
-
-  const onCopyKey = useCallback(() => {
-    void navigator.clipboard.writeText(draft.api.rawKey).catch(() => null);
-  }, [draft.api.rawKey]);
-
-  const onRegenerateKey = useCallback(() => {
-    patchDraft((d) => ({
-      ...d,
-      api: { ...d.api, rawKey: `sk_live_${randomToken(24)}` },
-    }));
-  }, [patchDraft]);
 
   return (
     <>
@@ -258,99 +225,6 @@ export function SettingsPageClient({ initialEmail }: Readonly<{ initialEmail: st
                     patchDraft((d) => ({ ...d, profile: { ...d.profile, confirmPassword: v } }))
                   }
                   onRequestDelete={onDeleteAccount}
-                />
-              ) : null}
-
-              {activeSection === "billing" ? (
-                <BillingSection
-                  planLabel={draft.billing.planLabel}
-                  promptsUsedPct={draft.billing.promptsUsedPct}
-                  librarySlotsUsedPct={draft.billing.librarySlotsUsedPct}
-                  cardLast4={draft.billing.cardLast4}
-                />
-              ) : null}
-
-              {activeSection === "preferences" ? (
-                <PreferencesSection
-                  autoSave={draft.preferences.autoSave}
-                  scoreBreakdown={draft.preferences.scoreBreakdown}
-                  showImprovedPrompt={draft.preferences.showImprovedPrompt}
-                  defaultSort={draft.preferences.defaultSort}
-                  compactView={draft.preferences.compactView}
-                  monospacePreview={draft.preferences.monospacePreview}
-                  onAutoSave={(v) =>
-                    patchDraft((d) => ({ ...d, preferences: { ...d.preferences, autoSave: v } }))
-                  }
-                  onScoreBreakdown={(v) =>
-                    patchDraft((d) => ({ ...d, preferences: { ...d.preferences, scoreBreakdown: v } }))
-                  }
-                  onShowImprovedPrompt={(v) =>
-                    patchDraft((d) => ({
-                      ...d,
-                      preferences: { ...d.preferences, showImprovedPrompt: v },
-                    }))
-                  }
-                  onDefaultSort={(v: DefaultSort) =>
-                    patchDraft((d) => ({ ...d, preferences: { ...d.preferences, defaultSort: v } }))
-                  }
-                  onCompactView={(v) =>
-                    patchDraft((d) => ({ ...d, preferences: { ...d.preferences, compactView: v } }))
-                  }
-                  onMonospacePreview={(v) =>
-                    patchDraft((d) => ({
-                      ...d,
-                      preferences: { ...d.preferences, monospacePreview: v },
-                    }))
-                  }
-                />
-              ) : null}
-
-              {activeSection === "notifications" ? (
-                <NotificationsSection
-                  emailProduct={draft.notifications.emailProduct}
-                  emailDigest={draft.notifications.emailDigest}
-                  emailSecurity={draft.notifications.emailSecurity}
-                  digestFrequency={draft.notifications.digestFrequency}
-                  onEmailProduct={(v) =>
-                    patchDraft((d) => ({
-                      ...d,
-                      notifications: { ...d.notifications, emailProduct: v },
-                    }))
-                  }
-                  onEmailDigest={(v) =>
-                    patchDraft((d) => ({
-                      ...d,
-                      notifications: { ...d.notifications, emailDigest: v },
-                    }))
-                  }
-                  onEmailSecurity={(v) =>
-                    patchDraft((d) => ({
-                      ...d,
-                      notifications: { ...d.notifications, emailSecurity: v },
-                    }))
-                  }
-                  onDigestFrequency={(v: DigestFrequency) =>
-                    patchDraft((d) => ({
-                      ...d,
-                      notifications: { ...d.notifications, digestFrequency: v },
-                    }))
-                  }
-                />
-              ) : null}
-
-              {activeSection === "api" ? (
-                <ApiSection
-                  maskedApiKey={maskKey(draft.api.rawKey)}
-                  webhookUrl={draft.api.webhookUrl}
-                  webhookEnabled={draft.api.webhookEnabled}
-                  apiUsagePct={draft.api.apiUsagePct}
-                  rateLimitLabel={draft.api.rateLimitLabel}
-                  onWebhookUrl={(v) => patchDraft((d) => ({ ...d, api: { ...d.api, webhookUrl: v } }))}
-                  onWebhookEnabled={(v) =>
-                    patchDraft((d) => ({ ...d, api: { ...d.api, webhookEnabled: v } }))
-                  }
-                  onCopyKey={onCopyKey}
-                  onRegenerateKey={onRegenerateKey}
                 />
               ) : null}
             </>

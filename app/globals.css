@@ -40,6 +40,15 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+button:not(:disabled),
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+a[href],
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
 .pa-sidebar-nav {
   color: var(--pa-muted);
   transition:

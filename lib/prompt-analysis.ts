@@ -19,9 +19,14 @@ function humanizeRuleFlag(flag: string): string {
   if (flag === "spam_like_repetition") return "Content looks highly repetitive (spam-like).";
   if (flag === "low_entropy_line") return "Contains very low-information lines.";
   if (flag === "possible_duplicate_content") return "Content may be duplicated back-to-back.";
+  if (flag === "missing_role") return "Missing an explicit role (e.g., “Act as …” / “You are …”).";
+  if (flag === "missing_task") return "Missing a clear task or objective.";
+  if (flag === "missing_output_format") return "Missing an explicit output format (e.g., JSON / Markdown / bullets).";
+  if (flag === "missing_constraints") return "Missing constraints (must-haves, do-nots, limits).";
+  if (flag === "missing_structure") return "Missing structure (sections, headings, or ordered steps).";
   if (flag === "analyzer_exception") return "Analyzer hit an unexpected error; score used rule-based recovery.";
   if (flag === "analyzer_error") return "AI analysis was unavailable; conservative scoring was applied.";
-  return flag.replace(/_/g, " ");
+  return flag.replaceAll("_", " ");
 }
 
 function breakdownFromHybrid(hybrid: HybridAnalyzeResult): AnalyzerResult["breakdown"] | undefined {
@@ -50,10 +55,11 @@ function breakdownFromHybrid(hybrid: HybridAnalyzeResult): AnalyzerResult["break
 
 export type UnifiedAnalysisPreview = {
   score: number;
+  source: "rule" | "rule+ai";
+  aiStatus: "ok" | "error" | "skipped";
   issues: string[];
   suggestions: string[];
   improvedPrompt: string;
-  source: "hybrid+heuristics";
   breakdown?: AnalyzerResult["breakdown"];
   missingParts?: AnalyzerResult["missingParts"];
   moderation: {
@@ -111,10 +117,11 @@ export function buildUnifiedPreview(
 
   const preview: UnifiedAnalysisPreview = {
     score,
+    source: hybrid.source,
+    aiStatus: hybrid.aiStatus,
     issues: uniqCap(issues, 14),
     suggestions: uniqCap(heuristics.suggestions, 14),
     improvedPrompt: heuristics.improvedPrompt,
-    source: "hybrid+heuristics",
     breakdown,
     missingParts: heuristics.missingParts,
     moderation: {

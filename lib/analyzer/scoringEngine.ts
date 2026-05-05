@@ -1,7 +1,8 @@
 export type FinalDecision = "approved" | "pending" | "rejected";
 
-const RULE_WEIGHT = 0.3;
-const AI_WEIGHT = 0.7;
+// Hybrid blend weights (AI is optional; rules must remain reliable on their own).
+const RULE_WEIGHT = 0.7;
+const AI_WEIGHT = 0.3;
 
 /** Blended score must be strictly greater than this to auto-approve (i.e. 76+). */
 export const AUTO_PUBLISH_THRESHOLD_EXCLUSIVE = 75;
