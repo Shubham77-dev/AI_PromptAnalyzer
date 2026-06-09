@@ -4,8 +4,8 @@ import { Pool } from "pg";
 import fs from "node:fs";
 import path from "node:path";
 
-function loadDotEnvIfPresent() {
-  const p = path.join(process.cwd(), ".env");
+function loadDotEnvFile(relPath, override) {
+  const p = path.join(process.cwd(), relPath);
   if (!fs.existsSync(p)) return;
   const text = fs.readFileSync(p, "utf8");
   for (const line of text.split(/\r?\n/)) {
@@ -18,11 +18,12 @@ function loadDotEnvIfPresent() {
     if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
     }
-    if (!process.env[key]) process.env[key] = val;
+    if (override || !process.env[key]) process.env[key] = val;
   }
 }
 
-loadDotEnvIfPresent();
+loadDotEnvFile(".env", false);
+loadDotEnvFile(".env.local", true);
 
 function requireEnv(name) {
   const v = process.env[name];
@@ -38,6 +39,7 @@ function createPrismaClient() {
       return (
         u.searchParams.get("sslmode") === "require" ||
         u.hostname.includes("supabase.com") ||
+        u.hostname.endsWith(".supabase.co") ||
         u.hostname.includes("pooler.supabase.com")
       );
     } catch {

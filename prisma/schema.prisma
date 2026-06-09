@@ -40,14 +40,31 @@ enum ModerationStatus {
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
+  /// Nullable for OAuth-only accounts (e.g. Google).
+  password  String?
+  name      String?
   role      UserRole @default(USER)
   status    UserStatus @default(ACTIVE)
   plan      UserPlan @default(FREE)
   createdAt DateTime @default(now())
 
-  prompts Prompt[]
-  likes   Like[]
-  usage   DailyUsage[]
+  prompts             Prompt[]
+  likes               Like[]
+  usage               DailyUsage[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  /// SHA-256 hex of the raw token from the email link (raw token is never stored).
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Prompt {
@@ -64,6 +81,18 @@ model Prompt {
   aiDetails Json?
   moderationScore Float?
   moderationRaw Json?
+  /// Six-dimension quality scores from upload preview analyzer.
+  qualityDimensions Json?
+  promptTypeLabel String?
+  maturityLevel String?
+  detectedIntent String?
+  techStack String[] @default([])
+  searchDomain String?
+  searchRole String?
+  searchKeywords String[] @default([])
+  rejectReason String?
+  reviewedAt DateTime?
+  reviewedById String?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 

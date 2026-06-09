@@ -1,53 +1,47 @@
-import Link from "next/link";
-import { ABOUT_MESSAGE } from "@/app/_lib/app-config";
-import { PageMeta } from "@/components/layout/PageMeta";
+import { prisma } from "@/lib/prisma";
+import { HomeLanding } from "@/components/landing/HomeLanding";
+import type { LandingStatPack } from "@/components/landing/LandingStats";
 
-export default function Home() {
-  return (
-    <div className="mx-auto w-full max-w-5xl">
-      <PageMeta
-        title="Home"
-        actions={
-          <Link
-            href="/upload"
-            className="rounded-lg border-[0.5px] border-black/10 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            + New Analysis
-          </Link>
-        }
-      />
+const FALLBACK: LandingStatPack = {
+  analyses: "34.8k",
+  prompts: "2,140",
+  users: "1,284",
+  avg: "71.4",
+};
 
-      <div className="rounded-xl border-[0.5px] border-black/10 bg-white p-8">
-        <h1 className="text-2xl font-medium text-gray-900">
-          Prompt Library with AI Rating System
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-          {ABOUT_MESSAGE} Upload prompts, get AI-powered analysis (accuracy/clarity +
-          suggestions), keep private ratings in your dashboard, then publish to a
-          searchable public library with likes and copy.
-        </p>
+function fmtK(n: number) {
+  if (!Number.isFinite(n)) return FALLBACK.analyses;
+  if (n >= 1000) {
+    const t = (n / 1000).toFixed(1);
+    return `${t.endsWith(".0") ? t.slice(0, -2) : t}k`;
+  }
+  return String(Math.round(n));
+}
 
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link
-            href="/upload"
-            className="rounded-lg bg-[#EEEDFE] px-4 py-2 text-sm font-medium text-[#534AB7] hover:opacity-90"
-          >
-            Upload a prompt
-          </Link>
-          <Link
-            href="/dashboard"
-            className="rounded-lg border-[0.5px] border-black/10 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            View dashboard
-          </Link>
-          <Link
-            href="/library"
-            className="rounded-lg border-[0.5px] border-black/10 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Browse public library
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
+function fmtInt(n: number) {
+  if (!Number.isFinite(n)) return "0";
+  return new Intl.NumberFormat("en-US").format(Math.round(n));
+}
+
+export default async function Home() {
+  let stats = FALLBACK;
+  try {
+    const [analysisCount, publishedCount, userCount, avgRow] = await Promise.all([
+      prisma.promptAnalysis.count(),
+      prisma.prompt.count({ where: { status: "PUBLISHED" } }),
+      prisma.user.count(),
+      prisma.prompt.aggregate({ where: { score: { not: null } }, _avg: { score: true } }),
+    ]);
+    const avg = avgRow._avg.score;
+    stats = {
+      analyses: fmtK(analysisCount),
+      prompts: fmtInt(publishedCount),
+      users: fmtInt(userCount),
+      avg: typeof avg === "number" && Number.isFinite(avg) ? avg.toFixed(1) : FALLBACK.avg,
+    };
+  } catch {
+    stats = FALLBACK;
+  }
+
+  return <HomeLanding stats={stats} />;
 }

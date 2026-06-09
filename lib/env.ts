@@ -7,6 +7,9 @@ const EnvSchema = z.object({
   JWT_SECRET: z.string().min(32, "JWT_SECRET should be at least 32 characters"),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().optional(),
+  OLLAMA_API_KEY: z.string().optional(),
+  OLLAMA_MODEL: z.string().optional(),
+  OLLAMA_BASE_URL: z.string().optional(),
 });
 
 let didLogEnvOnce = false;
@@ -29,6 +32,9 @@ export function getEnv() {
     JWT_SECRET: process.env.JWT_SECRET,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     OPENAI_MODEL: process.env.OPENAI_MODEL,
+    OLLAMA_API_KEY: process.env.OLLAMA_API_KEY,
+    OLLAMA_MODEL: process.env.OLLAMA_MODEL,
+    OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL,
   });
 
   if (!parsed.success) {

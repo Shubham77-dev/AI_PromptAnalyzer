@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "prisma generate && next dev",
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
@@ -12,7 +12,9 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:migrate-default-passwords": "npx --yes tsx prisma/migrate-default-passwords.ts",
+    "test:analyzer": "npx --yes tsx --test lib/deterministic-analyzer/promptPresence.test.ts lib/quality-analyzer/router.test.ts lib/quality-analyzer/parse.test.ts lib/clean-improved-prompt.test.ts lib/analyzer/moderationRouter.test.ts lib/prompt-duplicates.test.ts lib/library-search.test.ts lib/password-policy.test.ts"
   },
   "prisma": {
     "seed": "node prisma/seed.mjs"
@@ -20,9 +22,11 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "bcryptjs": "^3.0.3",
     "jose": "^6.2.2",
     "lucide-react": "^1.11.0",
     "next": "16.2.4",
+    "next-auth": "^5.0.0-beta.30",
     "openai": "^6.34.0",
     "pg": "^8.20.0",
     "prisma": "^7.8.0",
@@ -32,7 +36,9 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "dotenv": "^16.4.7",
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { RequireLoginGate } from "@/components/layout/RequireLoginGate";
 import { SettingsPageClient } from "@/components/settings/SettingsPageClient";
 
 /**
@@ -9,7 +9,7 @@ import { SettingsPageClient } from "@/components/settings/SettingsPageClient";
  */
 export default async function SettingsPage() {
   const user = await getCurrentUser();
-  if (!user) return <RequireLoginGate />;
+  if (!user) redirect("/login?callbackUrl=/settings");
 
   return (
     <Suspense

@@ -28,6 +28,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ success: false, error: "Invalid input" }, { status: 400 });
   }
 
+  const rejectReason = parsedBody.data?.reason?.trim() || "Rejected by admin.";
+
   const prompt = await prisma.prompt.findUnique({
     where: { id: parsedParams.data.id },
     select: { id: true, moderationStatus: true },
@@ -47,10 +49,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       status: "DRAFT",
       moderationStatus: "REJECTED",
       flagged: true,
-      reason: parsedBody.data?.reason?.trim() ? parsedBody.data.reason.trim() : "Rejected by admin.",
+      reason: rejectReason,
+      rejectReason,
+      reviewedAt: new Date(),
+      reviewedById: user.id,
     },
   });
 
   return NextResponse.json({ success: true, prompt: updated });
 }
-

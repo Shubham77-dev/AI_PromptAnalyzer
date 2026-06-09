@@ -52,6 +52,7 @@ export async function adminUnpublishPrompt(formData: FormData) {
   });
   revalidatePath("/admin/prompts");
   revalidatePath("/admin/flagged");
+  revalidatePath("/admin/flags");
   revalidatePath("/library");
 }
 
@@ -63,6 +64,7 @@ export async function adminRemovePrompt(formData: FormData) {
   await prisma.prompt.delete({ where: { id: parsed.data.promptId } });
   revalidatePath("/admin/prompts");
   revalidatePath("/admin/flagged");
+  revalidatePath("/admin/flags");
   revalidatePath("/library");
 }
 
@@ -76,6 +78,7 @@ export async function adminIgnoreFlag(formData: FormData) {
     data: { flagged: false, reason: null },
   });
   revalidatePath("/admin/flagged");
+  revalidatePath("/admin/flags");
 }
 
 export async function adminUpsertAppConfig(formData: FormData) {

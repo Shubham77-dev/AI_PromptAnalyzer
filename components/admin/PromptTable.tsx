@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { adminRemovePrompt, adminUnpublishPrompt } from "@/app/admin/actions";
+import { adminRemovePrompt } from "@/app/admin/actions";
+import { PublishToggle } from "@/components/admin/PublishToggle";
+import { Card } from "@/components/ui/Card";
+import { SeeMoreText } from "@/components/ui/SeeMoreText";
+import { ButtonOutline } from "@/components/ui/ButtonOutline";
+import { UserAvatar } from "@/components/ui/UserAvatar";
+import { effectiveDisplayScore } from "@/lib/prompt-display-score";
 
 export type AdminPromptsSearchParams = {
   status?: "PUBLISHED" | "DRAFT" | "UNDER_REVIEW" | "all";
@@ -25,6 +31,51 @@ function parseScore(v: string | undefined) {
   const n = Number(v);
   if (!Number.isFinite(n)) return null;
   return Math.max(0, Math.min(100, n));
+}
+
+function initials(email: string) {
+  const name = email.split("@")[0] ?? email;
+  const a = name[0] ?? "U";
+  const b = name[1] ?? "";
+  return (a + b).toUpperCase();
+}
+
+function labelFromEmail(email: string) {
+  const local = email.split("@")[0] ?? email;
+  return local.replace(/[._]/g, " ").trim() || email;
+}
+
+function scoreColor(score: number) {
+  if (score >= 80) return "var(--pa-acc2)";
+  if (score >= 50) return "var(--pa-acc1)";
+  return "var(--pa-acc4)";
+}
+
+function HeartIcon() {
+  return (
+    <svg width={12} height={12} viewBox="0 0 24 24" aria-hidden style={{ color: "var(--pa-muted)" }}>
+      <path
+        d="M12 21s-7.2-4.6-9.6-9.1C.7 8.7 2.6 5.5 6 5.1c1.8-.2 3.6.6 4.6 2 1-1.4 2.8-2.2 4.6-2 3.4.4 5.3 3.6 3.6 6.8C19.2 16.4 12 21 12 21Z"
+        fill="currentColor"
+        opacity="0.9"
+      />
+    </svg>
+  );
+}
+
+function listParams(sp: Readonly<AdminPromptsSearchParams>, pageNum: number) {
+  const p = new URLSearchParams();
+  if (sp.status && sp.status !== "all") p.set("status", sp.status);
+  if (sp.minScore?.trim()) p.set("minScore", sp.minScore.trim());
+  if (sp.maxScore?.trim()) p.set("maxScore", sp.maxScore.trim());
+  if (pageNum > 1) p.set("page", String(pageNum));
+  return p;
+}
+
+function viewHref(sp: Readonly<AdminPromptsSearchParams>, promptId: string) {
+  const p = listParams(sp, parsePage(sp.page));
+  p.set("view", promptId);
+  return `/admin/prompts?${p.toString()}`;
 }
 
 export async function PromptTable({ searchParams }: Readonly<{ searchParams: AdminPromptsSearchParams }>) {
@@ -69,15 +120,22 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="rounded-xl bg-white shadow-sm ring-1 ring-black/10">
-      <div className="border-b border-black/5 p-4">
+    <Card>
+      <div style={{ borderBottom: "1px solid var(--pa-card-border)" }} className="p-4">
         <form className="grid gap-3 md:flex md:flex-wrap md:items-end" action="/admin/prompts" method="GET">
           <div className="md:w-auto">
-            <div className="text-xs font-medium text-gray-600">Status</div>
+            <div className="text-xs font-semibold" style={{ color: "var(--pa-muted)" }}>
+              Status
+            </div>
             <select
               name="status"
               defaultValue={status}
-              className="mt-1 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 md:w-auto"
+              className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none md:w-auto"
+              style={{
+                border: "1px solid var(--pa-card-border)",
+                background: "var(--pa-card)",
+                color: "var(--pa-text)",
+              }}
             >
               <option value="all">All</option>
               <option value="PUBLISHED">Published</option>
@@ -87,33 +145,48 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
           </div>
           <div className="grid grid-cols-2 gap-3 md:flex md:items-end">
             <div className="min-w-0">
-              <div className="text-xs font-medium text-gray-600">Min score</div>
+              <div className="text-xs font-semibold" style={{ color: "var(--pa-muted)" }}>
+                Min score
+              </div>
               <input
                 name="minScore"
                 inputMode="numeric"
                 defaultValue={searchParams.minScore ?? ""}
-                className="mt-1 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 md:w-[120px]"
+                className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none md:w-[120px]"
+                style={{
+                  border: "1px solid var(--pa-card-border)",
+                  background: "var(--pa-card)",
+                  color: "var(--pa-text)",
+                }}
                 placeholder="0"
               />
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-medium text-gray-600">Max score</div>
+              <div className="text-xs font-semibold" style={{ color: "var(--pa-muted)" }}>
+                Max score
+              </div>
               <input
                 name="maxScore"
                 inputMode="numeric"
                 defaultValue={searchParams.maxScore ?? ""}
-                className="mt-1 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 md:w-[120px]"
+                className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none md:w-[120px]"
+                style={{
+                  border: "1px solid var(--pa-card-border)",
+                  background: "var(--pa-card)",
+                  color: "var(--pa-text)",
+                }}
                 placeholder="100"
               />
             </div>
           </div>
           <button
             type="submit"
-            className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
+            className="pa-btn-transition rounded-lg px-3 py-2 text-sm font-semibold"
+            style={{ backgroundImage: "var(--pa-grad)", color: "#fff" }}
           >
             Apply
           </button>
-          <div className="text-xs text-gray-500 md:ml-auto">
+          <div className="text-xs md:ml-auto" style={{ color: "var(--pa-muted)" }}>
             {total} prompts • page {page} / {totalPages}
           </div>
         </form>
@@ -122,73 +195,79 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
       {/* Mobile-first: cards. Desktop: table. */}
       <div className="grid gap-3 p-4 md:hidden">
         {prompts.map((p) => {
-          const accuracy = p.analysis?.accuracy ?? null;
-          const clarity = p.analysis?.clarity ?? null;
           const likes = p.stats?.likes ?? 0;
+          const score = effectiveDisplayScore(p);
           return (
-            <div key={p.id} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-black/10">
+            <div
+              key={p.id}
+              className="rounded-xl p-4"
+              style={{ background: "var(--pa-hint)", border: "1px solid var(--pa-card-border)" }}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-gray-900">{p.user.email}</div>
+                  <div className="truncate text-sm font-semibold" style={{ color: "var(--pa-text)" }}>
+                    {p.user.email}
+                  </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700 ring-1 ring-black/10">
-                      {p.status}
+                    <span
+                      className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                      style={{
+                        background: p.flagged
+                          ? "color-mix(in srgb, var(--pa-acc4) 16%, transparent)"
+                          : p.status === "PUBLISHED"
+                            ? "color-mix(in srgb, var(--pa-acc2) 16%, transparent)"
+                            : "transparent",
+                        border: "1px solid var(--pa-card-border)",
+                        color: p.flagged ? "var(--pa-acc4)" : p.status === "PUBLISHED" ? "var(--pa-acc2)" : "var(--pa-muted)",
+                      }}
+                    >
+                      {p.flagged ? "Flagged" : p.status === "PUBLISHED" ? "Published" : "Draft"}
                     </span>
-                    {p.flagged ? (
-                      <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-200">
-                        flagged
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                      style={{ background: "transparent", border: "1px solid var(--pa-card-border)", color: "var(--pa-muted)" }}
+                    >
+                      <HeartIcon /> {likes}
+                    </span>
+                    {typeof score === "number" ? (
+                      <span
+                        className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                        style={{
+                          background: "transparent",
+                          border: "1px solid var(--pa-card-border)",
+                          color: scoreColor(score),
+                        }}
+                      >
+                        score: {score}
                       </span>
                     ) : null}
-                    <span className="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-700 ring-1 ring-black/10">
-                      likes: {likes}
-                    </span>
                   </div>
                 </div>
-                <a
-                  className="shrink-0 rounded-lg border border-black/10 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                  href={`/admin/prompts?view=${encodeURIComponent(p.id)}`}
-                >
-                  View
-                </a>
+                <ButtonOutline href={viewHref(searchParams, p.id)}>View</ButtonOutline>
               </div>
 
-              <div className="mt-3 max-h-36 overflow-hidden whitespace-pre-wrap break-words text-sm leading-6 text-gray-800">
-                {truncate(p.content, 320)}
-              </div>
-
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <div className="rounded-lg bg-gray-50 px-3 py-2">
-                  <div className="text-[11px] font-semibold text-gray-600">Accuracy</div>
-                  <div className="mt-0.5 text-sm font-semibold text-gray-900">{accuracy ?? "—"}</div>
-                </div>
-                <div className="rounded-lg bg-gray-50 px-3 py-2">
-                  <div className="text-[11px] font-semibold text-gray-600">Clarity</div>
-                  <div className="mt-0.5 text-sm font-semibold text-gray-900">{clarity ?? "—"}</div>
-                </div>
-                <div className="rounded-lg bg-gray-50 px-3 py-2">
-                  <div className="text-[11px] font-semibold text-gray-600">Score</div>
-                  <div className="mt-0.5 text-sm font-semibold text-gray-900">
-                    {typeof p.score === "number" && Number.isFinite(p.score) ? Math.round(p.score) : "—"}
-                  </div>
-                </div>
-              </div>
+              <SeeMoreText
+                text={p.content}
+                collapsedMaxHeightPx={144}
+                className="mt-3"
+                contentClassName="text-sm leading-6"
+                contentStyle={{
+                  color: "var(--pa-muted)",
+                  fontFamily: "var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace",
+                }}
+              />
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <form action={adminUnpublishPrompt} className="flex-1">
-                  <input type="hidden" name="promptId" value={p.id} />
-                  <button
-                    type="submit"
-                    className="w-full rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700"
-                  >
-                    Unpublish
-                  </button>
-                </form>
+                <div className="flex-1">
+                  <PublishToggle
+                    promptId={p.id}
+                    status={p.status}
+                    size="md"
+                  />
+                </div>
                 <form action={adminRemovePrompt} className="flex-1">
                   <input type="hidden" name="promptId" value={p.id} />
-                  <button
-                    type="submit"
-                    className="w-full rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
-                  >
+                  <button type="submit" className="pa-admin-suspend w-full">
                     Remove
                   </button>
                 </form>
@@ -197,7 +276,10 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
           );
         })}
         {prompts.length === 0 ? (
-          <div className="rounded-xl bg-white p-6 text-center text-sm text-gray-500 shadow-sm ring-1 ring-black/10">
+          <div
+            className="rounded-xl p-6 text-center text-sm"
+            style={{ color: "var(--pa-muted)", background: "var(--pa-hint)", border: "1px solid var(--pa-card-border)" }}
+          >
             No prompts found.
           </div>
         ) : null}
@@ -205,64 +287,114 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
 
       <div className="hidden overflow-auto md:block">
         <table className="min-w-[1100px] w-full text-left text-sm">
-          <thead className="bg-gray-50 text-xs font-semibold text-gray-600">
+          <thead>
             <tr>
-              <th className="px-4 py-3">Preview</th>
-              <th className="px-4 py-3">Author</th>
-              <th className="px-4 py-3">Accuracy</th>
-              <th className="px-4 py-3">Clarity</th>
-              <th className="px-4 py-3">Likes</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Actions</th>
+              {(["Prompt", "Author", "Score", "Likes", "Status", "Actions"] as const).map((h) => (
+                <th
+                  key={h}
+                  className="px-4 py-2.5 font-semibold uppercase tracking-wide"
+                  style={{ fontSize: 10, color: "var(--pa-muted)", background: "var(--pa-hint)" }}
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-black/5">
+          <tbody>
             {prompts.map((p) => {
-              const accuracy = p.analysis?.accuracy ?? null;
-              const clarity = p.analysis?.clarity ?? null;
               const likes = p.stats?.likes ?? 0;
+              const score = effectiveDisplayScore(p);
+              const authorEmail = p.user.email;
+              const authorLabel = labelFromEmail(authorEmail);
+              const isFlagged = Boolean(p.flagged);
+              const statusLabel = isFlagged ? "Flagged" : p.status === "PUBLISHED" ? "Published" : "Draft";
+              const statusStyle = isFlagged
+                ? {
+                    background: "color-mix(in srgb, var(--pa-acc4) 14%, transparent)",
+                    color: "var(--pa-acc4)",
+                    border: "1px solid color-mix(in srgb, var(--pa-acc4) 35%, transparent)",
+                  }
+                : p.status === "PUBLISHED"
+                  ? {
+                      background: "color-mix(in srgb, var(--pa-acc2) 14%, transparent)",
+                      color: "var(--pa-acc2)",
+                      border: "1px solid color-mix(in srgb, var(--pa-acc2) 35%, transparent)",
+                    }
+                  : {
+                      background: "transparent",
+                      color: "var(--pa-muted)",
+                      border: "1px solid var(--pa-card-border)",
+                    };
               return (
-                <tr key={p.id} className="hover:bg-gray-50/60">
-                  <td className="px-4 py-3 text-gray-800">{truncate(p.content)}</td>
-                  <td className="px-4 py-3">{p.user.email}</td>
-                  <td className="px-4 py-3">{accuracy ?? "—"}</td>
-                  <td className="px-4 py-3">{clarity ?? "—"}</td>
-                  <td className="px-4 py-3">{likes}</td>
+                <tr
+                  key={p.id}
+                  className="pa-transition pa-table-row"
+                  style={{ borderBottom: "1px solid var(--pa-card-border)" }}
+                >
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700 ring-1 ring-black/10">
-                        {p.status}
-                      </span>
-                      {p.flagged ? (
-                        <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-200">
-                          flagged
-                        </span>
-                      ) : null}
+                    <div
+                      className="truncate"
+                      style={{
+                        fontFamily: "var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace",
+                        fontSize: 12,
+                        color: "var(--pa-muted)",
+                        maxWidth: 520,
+                      }}
+                      title={p.content}
+                    >
+                      {truncate(p.content, 180)}
                     </div>
                   </td>
                   <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <UserAvatar initials={initials(authorEmail)} size="sm" />
+                      <div className="min-w-0">
+                        <div className="truncate" style={{ fontSize: 11, fontWeight: 500, color: "var(--pa-text)" }}>
+                          {authorLabel}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {typeof score === "number" ? (
+                      <div className="flex items-center gap-2">
+                        <div className="pa-score-bar-track overflow-hidden rounded" style={{ width: 60, height: 3 }}>
+                          <div
+                            style={{
+                              width: `${Math.max(0, Math.min(100, score))}%`,
+                              height: 3,
+                              borderRadius: 3,
+                              background: scoreColor(score),
+                              transition: "width 0.25s ease",
+                            }}
+                          />
+                        </div>
+                        <span className="tabular-nums" style={{ fontSize: 11, color: "var(--pa-text)" }}>
+                          {score}
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 11, color: "var(--pa-muted)" }}>—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1" style={{ fontSize: 11, color: "var(--pa-muted)" }}>
+                      <HeartIcon />
+                      <span className="tabular-nums">{likes}</span>
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center rounded-full px-2 py-0.5 font-semibold" style={{ fontSize: 10, ...statusStyle }}>
+                      {statusLabel}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <a
-                        className="rounded-lg border border-black/10 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                        href={`/admin/prompts?view=${encodeURIComponent(p.id)}`}
-                      >
-                        View
-                      </a>
-                      <form action={adminUnpublishPrompt}>
-                        <input type="hidden" name="promptId" value={p.id} />
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
-                        >
-                          Unpublish
-                        </button>
-                      </form>
+                      <ButtonOutline href={viewHref(searchParams, p.id)}>View</ButtonOutline>
+                      <PublishToggle promptId={p.id} status={p.status} />
                       <form action={adminRemovePrompt}>
                         <input type="hidden" name="promptId" value={p.id} />
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-red-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
-                        >
+                        <button type="submit" className="pa-admin-suspend">
                           Remove
                         </button>
                       </form>
@@ -273,7 +405,7 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
             })}
             {prompts.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-500">
+                <td colSpan={6} className="px-4 py-10 text-center" style={{ fontSize: 12, color: "var(--pa-muted)" }}>
                   No prompts found.
                 </td>
               </tr>
@@ -282,37 +414,42 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
         </table>
       </div>
 
-      <div className="flex items-center justify-between gap-2 border-t border-black/5 p-4 text-sm">
-        <a
-          className={[
-            "rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-semibold",
-            page <= 1 ? "pointer-events-none opacity-50" : "hover:bg-gray-50",
-          ].join(" ")}
-          href={`/admin/prompts?${new URLSearchParams({
-            status: status,
-            minScore: searchParams.minScore ?? "",
-            maxScore: searchParams.maxScore ?? "",
-            page: String(Math.max(1, page - 1)),
-          }).toString()}`}
+      <div
+        className="flex items-center justify-between gap-2 p-4 text-sm"
+        style={{ borderTop: "1px solid var(--pa-card-border)" }}
+      >
+        <ButtonOutline
+          href={
+            page <= 1
+              ? undefined
+              : `/admin/prompts?${new URLSearchParams({
+                  status: status,
+                  minScore: searchParams.minScore ?? "",
+                  maxScore: searchParams.maxScore ?? "",
+                  page: String(Math.max(1, page - 1)),
+                }).toString()}`
+          }
+          disabled={page <= 1}
         >
           Prev
-        </a>
-        <a
-          className={[
-            "rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-semibold",
-            page >= totalPages ? "pointer-events-none opacity-50" : "hover:bg-gray-50",
-          ].join(" ")}
-          href={`/admin/prompts?${new URLSearchParams({
-            status: status,
-            minScore: searchParams.minScore ?? "",
-            maxScore: searchParams.maxScore ?? "",
-            page: String(Math.min(totalPages, page + 1)),
-          }).toString()}`}
+        </ButtonOutline>
+        <ButtonOutline
+          href={
+            page >= totalPages
+              ? undefined
+              : `/admin/prompts?${new URLSearchParams({
+                  status: status,
+                  minScore: searchParams.minScore ?? "",
+                  maxScore: searchParams.maxScore ?? "",
+                  page: String(Math.min(totalPages, page + 1)),
+                }).toString()}`
+          }
+          disabled={page >= totalPages}
         >
           Next
-        </a>
+        </ButtonOutline>
       </div>
-    </div>
+    </Card>
   );
 }
 

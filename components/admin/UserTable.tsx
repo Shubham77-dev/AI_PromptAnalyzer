@@ -1,11 +1,17 @@
+import type { CSSProperties } from "react";
 import { prisma } from "@/lib/prisma";
 import { adminSetUserRole, adminSuspendUser } from "@/app/admin/actions";
+import { ButtonOutline } from "@/components/ui/ButtonOutline";
+import { Card } from "@/components/ui/Card";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 export type AdminUsersSearchParams = {
   q?: string;
   plan?: "FREE" | "PRO" | "ENTERPRISE" | "all";
   status?: "ACTIVE" | "SUSPENDED" | "all";
   page?: string;
+  /** URL `flagged=1` — users with at least one flagged prompt */
+  flagged?: string;
 };
 
 function initials(email: string) {
@@ -13,6 +19,11 @@ function initials(email: string) {
   const a = name[0] ?? "U";
   const b = name[1] ?? "";
   return (a + b).toUpperCase();
+}
+
+function displayName(email: string) {
+  const local = email.split("@")[0] ?? email;
+  return local.replace(/[._]/g, " ").trim() || email;
 }
 
 function parsePage(page: string | undefined) {
@@ -23,6 +34,28 @@ function parsePage(page: string | undefined) {
 
 function fmtDate(d: Date) {
   return d.toISOString().slice(0, 10);
+}
+
+function listParams(sp: Readonly<AdminUsersSearchParams>, pageNum: number) {
+  const p = new URLSearchParams();
+  const qv = (sp.q ?? "").trim();
+  if (qv) p.set("q", qv);
+  if (sp.plan && sp.plan !== "all") p.set("plan", sp.plan);
+  if (sp.status && sp.status !== "all") p.set("status", sp.status);
+  if (sp.flagged === "1") p.set("flagged", "1");
+  if (pageNum > 1) p.set("page", String(pageNum));
+  return p;
+}
+
+function listHref(sp: Readonly<AdminUsersSearchParams>, pageNum: number) {
+  const s = listParams(sp, pageNum).toString();
+  return s ? `/admin/users?${s}` : "/admin/users";
+}
+
+function viewHref(sp: Readonly<AdminUsersSearchParams>, userId: string) {
+  const p = listParams(sp, parsePage(sp.page));
+  p.set("view", userId);
+  return `/admin/users?${p.toString()}`;
 }
 
 export async function UserTable({ searchParams }: Readonly<{ searchParams: AdminUsersSearchParams }>) {
@@ -36,6 +69,7 @@ export async function UserTable({ searchParams }: Readonly<{ searchParams: Admin
     ...(q ? { email: { contains: q, mode: "insensitive" as const } } : null),
     ...(plan !== "all" ? { plan } : null),
     ...(status !== "all" ? { status } : null),
+    ...(searchParams.flagged === "1" ? { prompts: { some: { flagged: true } } } : null),
   };
 
   const [total, users] = await Promise.all([
@@ -50,143 +84,152 @@ export async function UserTable({ searchParams }: Readonly<{ searchParams: Admin
   ]);
 
   const ids = users.map((u) => u.id);
-  const counts = ids.length
-    ? await prisma.prompt.groupBy({
-        by: ["userId"],
-        _count: { _all: true },
-        where: { userId: { in: ids } },
-      })
-    : [];
+  const [counts, flaggedRows] = await Promise.all([
+    ids.length
+      ? prisma.prompt.groupBy({
+          by: ["userId"],
+          _count: { _all: true },
+          where: { userId: { in: ids } },
+        })
+      : Promise.resolve([]),
+    ids.length
+      ? prisma.prompt.findMany({
+          where: { userId: { in: ids }, flagged: true },
+          select: { userId: true },
+          distinct: ["userId"],
+        })
+      : Promise.resolve([]),
+  ]);
 
   const countByUserId = new Map<string, number>(counts.map((c) => [c.userId, c._count._all]));
+  const flaggedSet = new Set(flaggedRows.map((r) => r.userId));
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  const thStyle = { color: "var(--pa-muted)", fontSize: 10 } as const;
+  const cellBorder = { borderBottom: "1px solid var(--pa-card-border)" } as const;
+
   return (
-    <div className="rounded-xl bg-white shadow-sm ring-1 ring-black/10">
-      <div className="border-b border-black/5 p-4">
-        <form className="flex flex-wrap items-end gap-3" action="/admin/users" method="GET">
-          <div className="min-w-[240px]">
-            <div className="text-xs font-medium text-gray-600">Search email</div>
-            <input
-              name="q"
-              defaultValue={searchParams.q ?? ""}
-              placeholder="user@company.com"
-              className="mt-1 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
-            />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-gray-600">Plan</div>
-            <select
-              name="plan"
-              defaultValue={plan}
-              className="mt-1 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
-            >
-              <option value="all">All</option>
-              <option value="FREE">Free</option>
-              <option value="PRO">Pro</option>
-              <option value="ENTERPRISE">Enterprise</option>
-            </select>
-          </div>
-          <div>
-            <div className="text-xs font-medium text-gray-600">Status</div>
-            <select
-              name="status"
-              defaultValue={status}
-              className="mt-1 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
-            >
-              <option value="all">All</option>
-              <option value="ACTIVE">Active</option>
-              <option value="SUSPENDED">Suspended</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700"
-          >
-            Apply
-          </button>
-          <div className="ml-auto text-xs text-gray-500">
-            {total} users • page {page} / {totalPages}
-          </div>
-        </form>
+    <Card className="overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3" style={cellBorder}>
+        <div style={{ fontSize: 11, color: "var(--pa-muted)" }}>
+          {total} users · page {page} / {totalPages}
+        </div>
       </div>
 
-      <div className="overflow-auto">
-        <table className="min-w-[980px] w-full text-left text-sm">
-          <thead className="bg-gray-50 text-xs font-semibold text-gray-600">
-            <tr>
-              <th className="px-4 py-3">User</th>
-              <th className="px-4 py-3">Plan</th>
-              <th className="px-4 py-3">Prompts</th>
-              <th className="px-4 py-3">Joined</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Actions</th>
+      <div className="overflow-x-auto">
+        <table className="min-w-[900px] w-full text-left">
+          <thead>
+            <tr style={{ background: "var(--pa-hint)" }}>
+              {(["User", "Plan", "Prompts", "Joined", "Status", "Actions"] as const).map((label) => (
+                <th key={label} className="px-4 py-2.5 font-semibold uppercase tracking-wide" style={thStyle}>
+                  {label}
+                </th>
+              ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-black/5">
+          <tbody>
             {users.map((u) => {
               const promptCount = countByUserId.get(u.id) ?? 0;
+              const isPro = u.plan === "PRO" || u.plan === "ENTERPRISE";
+              const planPill = isPro
+                ? {
+                    background: "color-mix(in srgb, var(--pa-acc1) 16%, transparent)",
+                    color: "var(--pa-acc1)",
+                    border: "1px solid color-mix(in srgb, var(--pa-acc1) 35%, transparent)",
+                  }
+                : {
+                    background: "var(--pa-hint)",
+                    color: "var(--pa-muted)",
+                    border: "1px solid var(--pa-card-border)",
+                  };
+
+              let statusLabel: string;
+              let statusStyle: CSSProperties;
+              if (u.status === "SUSPENDED") {
+                statusLabel = "Suspended";
+                statusStyle = {
+                  background: "color-mix(in srgb, var(--pa-acc3) 14%, transparent)",
+                  color: "var(--pa-acc3)",
+                  border: "1px solid color-mix(in srgb, var(--pa-acc3) 35%, transparent)",
+                };
+              } else if (flaggedSet.has(u.id)) {
+                statusLabel = "Flagged";
+                statusStyle = {
+                  background: "color-mix(in srgb, var(--pa-acc4) 14%, transparent)",
+                  color: "var(--pa-acc4)",
+                  border: "1px solid color-mix(in srgb, var(--pa-acc4) 35%, transparent)",
+                };
+              } else {
+                statusLabel = "Active";
+                statusStyle = {
+                  background: "color-mix(in srgb, var(--pa-acc2) 14%, transparent)",
+                  color: "var(--pa-acc2)",
+                  border: "1px solid color-mix(in srgb, var(--pa-acc2) 35%, transparent)",
+                };
+              }
+
               return (
-                <tr key={u.id} className="hover:bg-gray-50/60">
+                <tr
+                  key={u.id}
+                  className="pa-transition pa-table-row"
+                  style={{ borderBottom: "1px solid var(--pa-card-border)" }}
+                >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="grid h-9 w-9 place-items-center rounded-full bg-red-50 text-xs font-semibold text-red-700 ring-1 ring-red-200">
-                        {initials(u.email)}
-                      </div>
+                      <UserAvatar initials={initials(u.email)} size="md" />
                       <div className="min-w-0">
-                        <div className="truncate font-medium text-gray-900">{u.email}</div>
-                        <div className="text-xs text-gray-500">{u.role}</div>
+                        <div className="truncate font-medium" style={{ fontSize: 11, color: "var(--pa-text)" }}>
+                          {displayName(u.email)}
+                        </div>
+                        <div className="truncate" style={{ fontSize: 10, color: "var(--pa-muted)" }}>
+                          {u.email}
+                        </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3">{u.plan}</td>
-                  <td className="px-4 py-3">{promptCount}</td>
-                  <td className="px-4 py-3">{fmtDate(u.createdAt)}</td>
                   <td className="px-4 py-3">
                     <span
-                      className={[
-                        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1",
-                        u.status === "ACTIVE"
-                          ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                          : "bg-red-50 text-red-700 ring-red-200",
-                      ].join(" ")}
+                      className="inline-flex rounded-full px-2 py-0.5 font-semibold"
+                      style={{ fontSize: 10, ...planPill }}
                     >
-                      {u.status}
+                      {u.plan === "ENTERPRISE" ? "Enterprise" : u.plan === "PRO" ? "Pro" : "Free"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3" style={{ fontSize: 12, color: "var(--pa-text)" }}>
+                    {promptCount}
+                  </td>
+                  <td className="px-4 py-3" style={{ fontSize: 12, color: "var(--pa-muted)" }}>
+                    {fmtDate(u.createdAt)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex rounded-full px-2 py-0.5 font-semibold" style={{ fontSize: 10, ...statusStyle }}>
+                      {statusLabel}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <a
-                        className="rounded-lg border border-black/10 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                        href={`/admin/users?view=${encodeURIComponent(u.id)}`}
-                      >
-                        View
-                      </a>
-
-                      <form action={adminSetUserRole}>
+                      <ButtonOutline href={viewHref(searchParams, u.id)}>View</ButtonOutline>
+                      <form action={adminSetUserRole} className="flex flex-wrap items-center gap-1">
                         <input type="hidden" name="userId" value={u.id} />
                         <select
                           name="role"
                           defaultValue={u.role}
-                          className="rounded-lg border border-black/10 bg-white px-2 py-1.5 text-xs font-semibold text-gray-700 outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                          className="pa-btn-transition rounded-lg px-2 py-1 font-semibold outline-none"
+                          style={{
+                            fontSize: 10,
+                            border: "1px solid var(--pa-card-border)",
+                            background: "var(--pa-card)",
+                            color: "var(--pa-text)",
+                          }}
                         >
                           <option value="USER">USER</option>
                           <option value="ADMIN">ADMIN</option>
                         </select>
-                        <button
-                          type="submit"
-                          className="ml-2 rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-black"
-                        >
-                          Save role
-                        </button>
+                        <ButtonOutline type="submit">Save role</ButtonOutline>
                       </form>
-
                       <form action={adminSuspendUser}>
                         <input type="hidden" name="userId" value={u.id} />
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-red-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
-                        >
+                        <button type="submit" className="pa-admin-suspend">
                           Suspend
                         </button>
                       </form>
@@ -197,7 +240,7 @@ export async function UserTable({ searchParams }: Readonly<{ searchParams: Admin
             })}
             {users.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-500">
+                <td colSpan={6} className="px-4 py-10 text-center" style={{ fontSize: 12, color: "var(--pa-muted)" }}>
                   No users found.
                 </td>
               </tr>
@@ -206,37 +249,20 @@ export async function UserTable({ searchParams }: Readonly<{ searchParams: Admin
         </table>
       </div>
 
-      <div className="flex items-center justify-between gap-2 border-t border-black/5 p-4 text-sm">
-        <a
-          className={[
-            "rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-semibold",
-            page <= 1 ? "pointer-events-none opacity-50" : "hover:bg-gray-50",
-          ].join(" ")}
-          href={`/admin/users?${new URLSearchParams({
-            q: searchParams.q ?? "",
-            plan: plan,
-            status: status,
-            page: String(Math.max(1, page - 1)),
-          }).toString()}`}
-        >
+      <div
+        className="flex items-center justify-between gap-2 px-4 py-3"
+        style={{ borderTop: "1px solid var(--pa-card-border)" }}
+      >
+        <ButtonOutline href={page <= 1 ? undefined : listHref(searchParams, page - 1)} disabled={page <= 1}>
           Prev
-        </a>
-        <a
-          className={[
-            "rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-semibold",
-            page >= totalPages ? "pointer-events-none opacity-50" : "hover:bg-gray-50",
-          ].join(" ")}
-          href={`/admin/users?${new URLSearchParams({
-            q: searchParams.q ?? "",
-            plan: plan,
-            status: status,
-            page: String(Math.min(totalPages, page + 1)),
-          }).toString()}`}
+        </ButtonOutline>
+        <ButtonOutline
+          href={page >= totalPages ? undefined : listHref(searchParams, page + 1)}
+          disabled={page >= totalPages}
         >
           Next
-        </a>
+        </ButtonOutline>
       </div>
-    </div>
+    </Card>
   );
 }
-

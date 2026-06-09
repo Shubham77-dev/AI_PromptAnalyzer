@@ -9,6 +9,18 @@ export function prismaKnownRequestResponse(
 ): { status: number; body: Record<string, unknown> } | null {
   if (!(e instanceof Prisma.PrismaClientKnownRequestError)) return null;
 
+  if (e.code === "P1001" || e.code === "P1017") {
+    console.error("[prisma] Database unreachable:", e.code, e.message);
+    return {
+      status: 503,
+      body: {
+        error:
+          "Cannot reach the database. If you use Supabase: the project may be paused, or your network may block the DB host. Prefer the transaction pooler on port 6543 with ?pgbouncer=true for DATABASE_URL (see Supabase Dashboard → Connect), and keep DIRECT_URL on port 5432 for migrations.",
+        code: e.code,
+      },
+    };
+  }
+
   if (e.code === "P2022") {
     console.error("[prisma] P2022 column/table mismatch — apply pending migrations:", {
       meta: e.meta,

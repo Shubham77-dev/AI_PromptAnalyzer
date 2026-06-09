@@ -1,9 +1,9 @@
 "use client";
 
 const SIZES = {
-  sm: { px: 18, border: 1.5 },
-  md: { px: 28, border: 2 },
-  lg: { px: 40, border: 2.5 },
+  sm: { px: 14, border: 1.5 },
+  md: { px: 20, border: 2 },
+  lg: { px: 36, border: 2.5 },
 } as const;
 
 export type SpinnerSize = keyof typeof SIZES;
@@ -19,11 +19,10 @@ export function Spinner({ size = "md" }: Readonly<{ size?: SpinnerSize }>) {
         height: s.px,
         borderWidth: s.border,
         borderStyle: "solid",
-        borderColor: "#EEEDFE",
-        borderTopColor: "#7F77DD",
-        animation: "spin 0.7s linear infinite",
+        borderColor: "var(--pa-hint)",
+        borderTopColor: "var(--pa-acc1)",
+        animation: "pa-spin 0.65s linear infinite",
       }}
     />
   );
 }
-

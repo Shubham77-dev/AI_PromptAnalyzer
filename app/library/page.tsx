@@ -1,30 +1,18 @@
 import { prisma } from "@/lib/prisma";
-import { SearchAndFilters } from "@/components/library/SearchAndFilters";
+import { LibraryBrowseClient } from "@/components/library/LibraryBrowseClient";
 import type { LibraryPrompt } from "@/components/library/PromptCard";
 import { PageMeta } from "@/components/layout/PageMeta";
+import { GlowLine } from "@/components/ui/GlowLine";
 
-export default async function LibraryPage({
-  searchParams,
-}: Readonly<{ searchParams: { q?: string } }>) {
-  const { q } = searchParams;
-  const query = (q || "").trim();
-
+export default async function LibraryPage() {
   const prompts = await prisma.prompt
     .findMany({
       where: {
         status: "PUBLISHED",
         moderationStatus: "APPROVED",
-        ...(query
-          ? {
-              content: {
-                contains: query,
-                mode: "insensitive",
-              },
-            }
-          : {}),
       },
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: 200,
       include: {
         user: { select: { email: true } },
         analysis: true,
@@ -47,21 +35,29 @@ export default async function LibraryPage({
           }
         : null,
       stats: p.stats ? { likes: p.stats.likes } : null,
+      promptTypeLabel: p.promptTypeLabel,
+      detectedIntent: p.detectedIntent,
+      techStack: p.techStack,
+      searchDomain: p.searchDomain,
+      searchRole: p.searchRole,
+      searchKeywords: p.searchKeywords,
     })) ?? [];
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <PageMeta title="Public prompt library" />
+      <PageMeta title="Prompt library" />
       {prompts === null ? (
-        <div className="rounded-xl border-[0.5px] border-black/10 bg-white p-5 text-sm text-gray-700">
-          Database not reachable. Start Postgres, check your{" "}
-          <code className="rounded bg-gray-100 px-1 py-0.5">DATABASE_URL</code>, and run{" "}
-          <code className="rounded bg-gray-100 px-1 py-0.5">npm run db:migrate</code>.
+        <div className="rounded-xl p-5" style={{ border: "1px solid var(--pa-card-border)", background: "var(--pa-card)" }}>
+          <span style={{ fontSize: 11, color: "var(--pa-muted)" }}>
+            Database not reachable. Start Postgres, check your DATABASE_URL, and run npm run db:migrate.
+          </span>
         </div>
       ) : (
-        <SearchAndFilters prompts={data} />
+        <>
+          <GlowLine />
+          <LibraryBrowseClient prompts={data} />
+        </>
       )}
     </div>
   );
 }
-

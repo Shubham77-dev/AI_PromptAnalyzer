@@ -4,14 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/rbac";
 
-const MIN_ADMIN_PUBLISH_SCORE = 50;
-
-function effectiveScore(prompt: { score: number | null; analysis: { accuracy: number } | null }) {
-  if (typeof prompt.score === "number" && Number.isFinite(prompt.score)) return prompt.score;
-  const acc = prompt.analysis?.accuracy;
-  return typeof acc === "number" && Number.isFinite(acc) ? acc : null;
-}
-
 export async function PATCH(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user || !isAdmin(user)) {
@@ -26,32 +18,15 @@ export async function PATCH(_req: NextRequest, ctx: { params: Promise<{ id: stri
 
   const prompt = await prisma.prompt.findUnique({
     where: { id: parsed.data.id },
-    select: {
-      id: true,
-      moderationStatus: true,
-      score: true,
-      analysis: { select: { accuracy: true } },
-    },
+    select: { id: true, status: true, moderationStatus: true },
   });
 
   if (!prompt) {
     return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
   }
 
-  if (prompt.moderationStatus === "APPROVED") {
-    return NextResponse.json({ success: true, message: "Already approved" });
-  }
-
-  if (prompt.moderationStatus !== "PENDING") {
-    return NextResponse.json({ success: false, error: "Prompt is not pending review" }, { status: 409 });
-  }
-
-  const score = effectiveScore(prompt);
-  if (!(typeof score === "number" && score >= MIN_ADMIN_PUBLISH_SCORE)) {
-    return NextResponse.json(
-      { success: false, error: `Publish requires score ≥ ${MIN_ADMIN_PUBLISH_SCORE}` },
-      { status: 400 },
-    );
+  if (prompt.status === "PUBLISHED") {
+    return NextResponse.json({ success: true, message: "Already published" });
   }
 
   const updated = await prisma.prompt.update({
@@ -60,10 +35,12 @@ export async function PATCH(_req: NextRequest, ctx: { params: Promise<{ id: stri
       status: "PUBLISHED",
       moderationStatus: "APPROVED",
       flagged: false,
-      reason: "Approved by admin.",
+      reason: prompt.moderationStatus === "PENDING" ? "Approved by admin." : "Published by admin.",
+      reviewedAt: new Date(),
+      reviewedById: user.id,
+      rejectReason: null,
     },
   });
 
   return NextResponse.json({ success: true, prompt: updated });
 }
-

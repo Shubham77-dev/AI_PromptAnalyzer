@@ -1,14 +1,14 @@
 "use client";
 
-import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 export function SidebarSkeleton() {
   return (
-    <aside className="fixed left-0 top-0 z-20 flex h-screen w-10 flex-col border-r-[0.5px] border-black/10 bg-white md:w-[220px]">
-      <div className="flex h-[52px] items-center gap-2 border-b-[0.5px] border-black/10 px-3">
-        <SkeletonBlock width="10px" height="10px" rounded="full" />
+    <aside className="fixed left-0 top-0 z-20 flex h-screen w-10 flex-col border-r border-[var(--pa-sb-border)] bg-[var(--pa-sidebar)] md:w-[220px]">
+      <div className="flex h-[52px] items-center gap-2 border-b border-[var(--pa-sb-border)] px-3">
+        <Skeleton width={10} height={10} rounded="full" />
         <div className="hidden md:block">
-          <SkeletonBlock width="120px" height="10px" />
+          <Skeleton width={120} height={10} />
         </div>
       </div>
 
@@ -16,20 +16,20 @@ export function SidebarSkeleton() {
         <div className="grid gap-1">
           {["1", "2", "3", "4"].map((k) => (
             <div key={k} className="flex items-center gap-2 rounded-lg px-2.5 py-2">
-              <SkeletonBlock width="16px" height="16px" rounded="sm" />
+              <Skeleton width={16} height={16} rounded="full" />
               <div className="hidden md:block">
-                <SkeletonBlock width="110px" height="10px" />
+                <Skeleton width={110} height={10} />
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="mt-auto border-t-[0.5px] border-black/10 p-2">
+      <div className="mt-auto border-t border-[var(--pa-sb-border)] p-2">
         <div className="flex items-center gap-2 rounded-lg px-2 py-2">
-          <SkeletonBlock width="26px" height="26px" rounded="full" />
+          <Skeleton width={26} height={26} rounded="full" />
           <div className="hidden md:block">
-            <SkeletonBlock width="120px" height="10px" />
+            <Skeleton width={120} height={10} />
           </div>
         </div>
       </div>
@@ -38,4 +38,3 @@ export function SidebarSkeleton() {
 }
 
 export default SidebarSkeleton;
-

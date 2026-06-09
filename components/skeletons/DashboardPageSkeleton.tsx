@@ -1,16 +1,16 @@
 "use client";
 
-import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
+import { Skeleton } from "@/components/ui/Skeleton";
 
-function StatCard() {
+function StatSk() {
   return (
-    <div className="rounded-xl border-[0.5px] border-black/10 bg-white p-5">
-      <SkeletonBlock width="90px" height="10px" />
+    <div className="rounded-xl p-4" style={{ border: "1px solid var(--pa-card-border)", background: "var(--pa-card)" }}>
+      <Skeleton width="90px" height={10} />
       <div className="mt-3">
-        <SkeletonBlock width="60px" height="24px" rounded="sm" />
+        <Skeleton width={60} height={24} />
       </div>
       <div className="mt-3">
-        <SkeletonBlock width="140px" height="10px" />
+        <Skeleton width={140} height={10} />
       </div>
     </div>
   );
@@ -20,36 +20,36 @@ export function DashboardPageSkeleton() {
   return (
     <div className="grid gap-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard />
-        <StatCard />
-        <StatCard />
-        <StatCard />
+        <StatSk />
+        <StatSk />
+        <StatSk />
+        <StatSk />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border-[0.5px] border-black/10 bg-white p-5">
-          <SkeletonBlock width="120px" height="12px" />
+        <div className="rounded-xl p-5" style={{ border: "1px solid var(--pa-card-border)", background: "var(--pa-card)" }}>
+          <Skeleton width={120} height={12} />
           <div className="mt-4 grid gap-3">
             {["1", "2", "3", "4"].map((k) => (
               <div key={k} className="flex items-center gap-3">
-                <SkeletonBlock width="8px" height="8px" rounded="full" />
-                <SkeletonBlock width="65%" height="10px" />
-                <SkeletonBlock width="64px" height="10px" />
+                <Skeleton width={8} height={8} rounded="full" />
+                <Skeleton width="65%" height={10} />
+                <Skeleton width={64} height={10} />
               </div>
             ))}
           </div>
         </div>
 
-        <div className="rounded-xl border-[0.5px] border-black/10 bg-white p-5">
-          <SkeletonBlock width="120px" height="12px" />
+        <div className="rounded-xl p-5" style={{ border: "1px solid var(--pa-card-border)", background: "var(--pa-card)" }}>
+          <Skeleton width={120} height={12} />
           <div className="mt-4 flex items-center gap-4">
-            <SkeletonBlock width="84px" height="84px" rounded="full" />
+            <Skeleton width={84} height={84} rounded="full" />
             <div className="grid flex-1 gap-3">
               {["a", "b", "c", "d"].map((k) => (
                 <div key={k} className="flex items-center gap-3">
-                  <SkeletonBlock width="56px" height="10px" />
-                  <SkeletonBlock width="100%" height="3px" rounded="full" />
-                  <SkeletonBlock width="22px" height="10px" />
+                  <Skeleton width={56} height={10} />
+                  <Skeleton width="100%" height={3} rounded="full" />
+                  <Skeleton width={22} height={10} />
                 </div>
               ))}
             </div>
@@ -61,4 +61,3 @@ export function DashboardPageSkeleton() {
 }
 
 export default DashboardPageSkeleton;
-

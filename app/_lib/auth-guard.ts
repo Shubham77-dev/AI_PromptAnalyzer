@@ -1,39 +1,12 @@
 "use client";
 
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { getSession } from "next-auth/react";
 import { toast } from "sonner";
 
-const LOCAL_TOKEN_KEY = "pl_token";
-
-function getCookie(name: string) {
-  if (globalThis.window === undefined) return null;
-  const cookies = globalThis.document?.cookie ?? "";
-  const parts = cookies.split(";").map((p) => p.trim());
-  for (const p of parts) {
-    if (!p) continue;
-    const eq = p.indexOf("=");
-    if (eq === -1) continue;
-    const k = p.slice(0, eq);
-    const v = p.slice(eq + 1);
-    if (k === name) return decodeURIComponent(v);
-  }
-  return null;
-}
-
-export function getAuthToken() {
-  if (globalThis.window === undefined) return null;
-  return globalThis.localStorage.getItem(LOCAL_TOKEN_KEY);
-}
-
-export function isAuthenticated() {
-  // Prefer localStorage token (used for bearer auth in some routes),
-  // but also allow a readable cookie token if present.
-  const token = getAuthToken();
-  if (token) return true;
-
-  // `pl_session` is httpOnly in this repo (not readable in JS),
-  // but keeping cookie check makes the helper compatible if that changes.
-  return Boolean(getCookie("pl_token") || getCookie("pl_session"));
+export async function isAuthenticated() {
+  const session = await getSession();
+  return Boolean(session?.user);
 }
 
 export async function requireAuth(
@@ -45,7 +18,7 @@ export async function requireAuth(
     message?: string;
   },
 ) {
-  if (isAuthenticated()) {
+  if (await isAuthenticated()) {
     await action();
     return true;
   }
@@ -57,4 +30,3 @@ export async function requireAuth(
   }, delayMs);
   return false;
 }
-

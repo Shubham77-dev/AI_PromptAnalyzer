@@ -1,27 +1,26 @@
 "use client";
 
 export interface ProgressBarProps {
-  animated?: boolean;
-  value?: number;
+  value: number; // 0-100
 }
 
-export function ProgressBar({ animated = false, value }: Readonly<ProgressBarProps>) {
-  const hasValue = typeof value === "number";
-  const v = hasValue ? Math.max(0, Math.min(100, value)) : undefined;
-  const width = hasValue ? `${v}%` : "72%";
+export function ProgressBar({ value }: Readonly<ProgressBarProps>) {
+  const clampedValue = Math.max(0, Math.min(100, value));
 
   return (
-    <div className="h-[3px] w-full overflow-hidden rounded-[4px] bg-[#EEEDFE]">
+    <div
+      className="w-full h-2 rounded-full overflow-hidden"
+      style={{
+        background: "var(--pa-card-border)",
+      }}
+    >
       <div
-        className="h-full rounded-[4px] bg-[#7F77DD]"
-        style={
-          animated
-            ? { width, animation: "pa-progress 1.4s ease-in-out infinite" }
-            : { width }
-        }
+        className="h-full transition-all duration-300 ease-out rounded-full"
+        style={{
+          width: `${clampedValue}%`,
+          background: "var(--pa-grad)",
+        }}
       />
-      <style>{`@keyframes pa-progress{0%{transform:translateX(-100%)}50%{transform:translateX(0)}100%{transform:translateX(-100%)}}`}</style>
     </div>
   );
 }
-
