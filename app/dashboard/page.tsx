@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { formatDateTimeStable } from "@/lib/format-date";
+import { effectiveDisplayScore } from "@/lib/prompt-display-score";
 import { prisma } from "@/lib/prisma";
 import { DeleteButton } from "@/app/_components/DeleteButton";
 import { SuggestionClamp } from "@/app/_components/SuggestionClamp";
@@ -175,7 +177,7 @@ export default async function DashboardPage() {
                       </span>
                     ) : null}
                     <span style={{ fontSize: 11, color: "var(--pa-muted)" }}>
-                      {new Date(p.createdAt).toLocaleString()}
+                      {formatDateTimeStable(p.createdAt)}
                     </span>
                     {p.stats ? (
                       <span style={{ fontSize: 11, color: "var(--pa-muted)" }}>Likes: {p.stats.likes}</span>
@@ -197,10 +199,10 @@ export default async function DashboardPage() {
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-xl p-3" style={{ border: "1px solid var(--pa-card-border)" }}>
                       <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", color: "var(--pa-muted)" }}>
-                        Accuracy
+                        Score
                       </div>
                       <div className="mt-1 text-lg font-medium" style={{ color: "var(--pa-text)" }}>
-                        {hasAnalysis ? p.analysis!.accuracy : "—"}
+                        {effectiveDisplayScore(p) ?? "—"}
                       </div>
                     </div>
                     <div className="rounded-xl p-3" style={{ border: "1px solid var(--pa-card-border)" }}>
@@ -229,7 +231,19 @@ export default async function DashboardPage() {
                     <span style={{ fontSize: 11, fontWeight: 500, color: "var(--pa-acc4)" }}>In review</span>
                   ) : null}
                   {isRejected ? (
-                    <span style={{ fontSize: 11, fontWeight: 500, color: "var(--pa-acc3)" }}>Rejected</span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span style={{ fontSize: 11, fontWeight: 500, color: "var(--pa-acc3)" }}>Rejected</span>
+                      {p.rejectReason ? (
+                        <span style={{ fontSize: 10, color: "var(--pa-muted)", maxWidth: 220, textAlign: "right" }}>
+                          Reason: {p.rejectReason}
+                        </span>
+                      ) : null}
+                      {!isAdmin ? (
+                        <Link href="/upload" style={{ fontSize: 11, fontWeight: 500, color: "var(--pa-acc1)" }}>
+                          Edit and resubmit →
+                        </Link>
+                      ) : null}
+                    </div>
                   ) : null}
                   <DeleteButton promptId={p.id} />
                   {!hasAnalysis && !isPublished ? (

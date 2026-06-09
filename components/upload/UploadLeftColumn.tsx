@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef } from "react";
+import { AnalyzerProviderSelect } from "@/components/upload/AnalyzerProviderSelect";
+import type { QualityAnalyzerId, QualityAnalyzerProviderOption } from "@/components/upload/uploadTypes";
 import { ButtonGradient } from "@/components/ui/ButtonGradient";
 import { Card } from "@/components/ui/Card";
 import { CardHeader } from "@/components/ui/CardHeader";
@@ -48,12 +50,18 @@ export function UploadLeftColumn({
   onAnalyze,
   isAnalyzing,
   error,
+  analyzerProvider,
+  onAnalyzerProviderChange,
+  providers,
 }: Readonly<{
   content: string;
   setContent: (s: string) => void;
   onAnalyze: () => void;
   isAnalyzing: boolean;
   error: string | null;
+  analyzerProvider: QualityAnalyzerId;
+  onAnalyzerProviderChange: (id: QualityAnalyzerId) => void;
+  providers: QualityAnalyzerProviderOption[];
 }>) {
   const inputRef = useRef<HTMLInputElement>(null);
   const len = content.length;
@@ -171,7 +179,14 @@ export function UploadLeftColumn({
           </div>
         ) : null}
 
-        <div className="mt-4">
+        <AnalyzerProviderSelect
+          providers={providers}
+          value={analyzerProvider}
+          onChange={onAnalyzerProviderChange}
+          disabled={isAnalyzing}
+        />
+
+        <div className="mt-3">
           <ButtonGradient
             fullWidth
             disabled={!can}

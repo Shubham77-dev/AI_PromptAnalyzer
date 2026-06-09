@@ -1,14 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { SeeMoreText } from "@/components/ui/SeeMoreText";
 import { PublishToggle } from "@/components/admin/PublishToggle";
+import { ScoreBadge } from "@/components/admin/ScoreBadge";
 import { adminRemovePrompt } from "@/app/admin/actions";
 import { adminRejectPrompt } from "@/app/admin/review/actions";
-
-function scoreFor(p: { score: number | null; analysis: { accuracy: number } | null }) {
-  if (typeof p.score === "number" && Number.isFinite(p.score)) return Math.round(p.score);
-  return p.analysis?.accuracy ?? null;
-}
-
+import { effectiveDisplayScore } from "@/lib/prompt-display-score";
 export async function PromptDetailPanel({
   promptId,
   closeHref,
@@ -52,11 +48,9 @@ export async function PromptDetailPanel({
     );
   }
 
-  const score = scoreFor(prompt);
-  const canPublish = typeof score === "number" && score >= 50;
+  const score = effectiveDisplayScore(prompt);
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 p-4 md:p-6">
+  return (    <div className="fixed inset-0 z-50 bg-black/40 p-4 md:p-6">
       <div className="mx-auto w-full max-w-4xl rounded-xl bg-white p-5 shadow-xl ring-1 ring-black/10">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -77,10 +71,7 @@ export async function PromptDetailPanel({
               >
                 moderation: {prompt.moderationStatus}
               </span>
-              <span className="inline-flex items-center rounded-full bg-white px-2 py-0.5 font-semibold text-gray-700 ring-1 ring-black/10">
-                score: {score ?? "—"}
-              </span>
-              <span className="inline-flex items-center rounded-full bg-white px-2 py-0.5 font-semibold text-gray-700 ring-1 ring-black/10">
+              <ScoreBadge score={score} />              <span className="inline-flex items-center rounded-full bg-white px-2 py-0.5 font-semibold text-gray-700 ring-1 ring-black/10">
                 likes: {prompt.stats?.likes ?? 0}
               </span>
               <span className="inline-flex items-center rounded-full bg-white px-2 py-0.5 font-semibold text-gray-700 ring-1 ring-black/10">
@@ -100,11 +91,8 @@ export async function PromptDetailPanel({
             <PublishToggle
               promptId={prompt.id}
               status={prompt.status}
-              disabled={!canPublish && prompt.status !== "PUBLISHED"}
-              disabledReason={!canPublish ? "Publish requires score ≥ 50" : undefined}
               size="md"
             />
-
             {prompt.moderationStatus === "PENDING" ? (
               <form action={adminRejectPrompt}>
                 <input type="hidden" name="promptId" value={prompt.id} />

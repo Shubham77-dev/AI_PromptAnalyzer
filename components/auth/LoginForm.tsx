@@ -16,8 +16,10 @@ export function LoginForm({
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const rawCallback = searchParams.get("callbackUrl");
@@ -28,6 +30,10 @@ export function LoginForm({
   useEffect(() => {
     const code = searchParams.get("error");
     if (!code) return;
+    if (code === "access_denied") {
+      setError("Access denied.");
+      return;
+    }
     const messages: Record<string, string> = {
       OAuthSignin: "Could not start Google sign-in. Try again.",
       OAuthCallback: "Google sign-in failed after redirect.",
@@ -44,52 +50,87 @@ export function LoginForm({
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    const res = await signIn("credentials", {
-      email: email.trim().toLowerCase(),
-      password: SIMPLE_AUTH_MODE ? "" : password,
-      redirect: false,
-      callbackUrl: explicitCallback ?? defaultAfterLogin,
-    });
-    if (res?.error) {
-      if (SIMPLE_AUTH_MODE) {
-        setError("Could not sign in. Check your email or account status.");
-      } else {
-        const hintRes = await fetch("/api/auth/login-hint", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email: email.trim().toLowerCase() }),
-        });
-        const hintBody = (await hintRes.json().catch(() => null)) as { hint?: string } | null;
-        if (hintBody?.hint === "oauth_or_reset") {
-          setError("Please use Google sign-in or reset your password to set a password for this account.");
+    setIsSubmitting(true);
+
+    try {
+      const res = await signIn("credentials", {
+        email: email.trim().toLowerCase(),
+        password: SIMPLE_AUTH_MODE ? "" : password,
+        redirect: false,
+        callbackUrl: explicitCallback ?? defaultAfterLogin,
+      });
+
+      if (res?.error) {
+        if (SIMPLE_AUTH_MODE) {
+          setError("Could not sign in. Check your email or account status.");
         } else {
-          setError("Invalid email or password.");
+          try {
+            const hintRes = await fetch("/api/auth/login-hint", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ email: email.trim().toLowerCase() }),
+            });
+            const hintBody = (await hintRes.json().catch(() => null)) as { hint?: string } | null;
+            if (hintBody?.hint === "oauth_or_reset") {
+              setError("Please use Google sign-in or reset your password to set a password for this account.");
+            } else {
+              setError("Invalid email or password");
+            }
+          } catch {
+            setError("Connection failed. Please try again.");
+          }
+        }
+        return;
+      }
+
+      if (rememberMe) {
+        try {
+          globalThis.localStorage?.setItem("pa-remember-email", email.trim().toLowerCase());
+        } catch {
+          // ignore storage errors
         }
       }
-      return;
-    }
-    const session = await getSession();
-    const role = session?.user?.role;
-    const dest =
-      explicitCallback ?? (role === "ADMIN" ? "/admin" : defaultAfterLogin);
 
-    if (res?.url) {
+      const session = await getSession();
+      const role = session?.user?.role;
+      const dest = explicitCallback ?? (role === "ADMIN" ? "/admin" : defaultAfterLogin);
+
+      if (res?.url) {
+        startTransition(() => {
+          router.push(res.url ?? dest);
+          router.refresh();
+        });
+        return;
+      }
       startTransition(() => {
-        router.push(res.url ?? dest);
+        router.push(dest);
         router.refresh();
       });
-      return;
+    } catch {
+      setError("Connection failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
-    startTransition(() => {
-      router.push(dest);
-      router.refresh();
-    });
   }
+
+  useEffect(() => {
+    try {
+      const saved = globalThis.localStorage?.getItem("pa-remember-email");
+      if (saved) {
+        setEmail(saved);
+        setRememberMe(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   async function onGoogle() {
     setError(null);
     await signIn("google", { callbackUrl: explicitCallback ?? defaultAfterLogin });
   }
+
+  const busy = isSubmitting || isPending;
 
   return (
     <LoginFormFields
@@ -99,8 +140,10 @@ export function LoginForm({
       setPassword={setPassword}
       showPw={showPw}
       setShowPw={setShowPw}
+      rememberMe={rememberMe}
+      setRememberMe={setRememberMe}
       error={error}
-      isPending={isPending}
+      isPending={busy}
       showGoogle={showGoogle}
       simpleAuthMode={SIMPLE_AUTH_MODE}
       onSubmit={onSubmit}

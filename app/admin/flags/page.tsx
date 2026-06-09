@@ -5,15 +5,12 @@ import { MiniStat } from "@/components/ui/MiniStat";
 import { FlagReviewCard, type FlagKind } from "@/components/admin/FlagReviewCard";
 import { PageMeta } from "@/components/layout/PageMeta";
 
-function scoreFor(p: { score: number | null; analysis: { accuracy: number } | null }) {
-  if (typeof p.score === "number" && Number.isFinite(p.score)) return Math.round(p.score);
-  return p.analysis?.accuracy ?? null;
-}
+import { effectiveDisplayScore } from "@/lib/prompt-display-score";
 
-function classify(p: { flagged: boolean; reason: string | null; score: number | null; analysis: { accuracy: number } | null }): FlagKind {
+function classify(p: { flagged: boolean; reason: string | null; score: number | null; analysis: { accuracy: number; clarity: number } | null }): FlagKind {
   const reason = (p.reason ?? "").toLowerCase();
   if (p.flagged && (reason.includes("rate") || reason.includes("abuse") || reason.includes("scrap"))) return "abuse";
-  const s = scoreFor(p);
+  const s = effectiveDisplayScore(p);
   if (typeof s === "number" && s >= 40 && s < 55) return "ambiguous";
   return "low";
 }
@@ -34,7 +31,7 @@ export default async function AdminFlagsPage() {
       score: true,
       userId: true,
       user: { select: { email: true } },
-      analysis: { select: { accuracy: true } },
+      analysis: { select: { accuracy: true, clarity: true } },
     },
   });
 
@@ -74,7 +71,7 @@ export default async function AdminFlagsPage() {
               userId={p.userId}
               email={p.user.email}
               content={p.content}
-              score={scoreFor(p)}
+              score={effectiveDisplayScore(p)}
               kind={classify(p)}
             />
           ))}

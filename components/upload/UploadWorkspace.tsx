@@ -6,7 +6,12 @@ import { AnalysisSteps } from "@/components/ui/AnalysisSteps";
 import { UploadLeftColumn } from "@/components/upload/UploadLeftColumn";
 import { UploadRecentCard } from "@/components/upload/UploadRecentCard";
 import { UploadScorePanel } from "@/components/upload/UploadScorePanel";
-import type { AnalysisPayload, RecentPromptRow } from "@/components/upload/uploadTypes";
+import type {
+  AnalysisPayload,
+  QualityAnalyzerId,
+  QualityAnalyzerProviderOption,
+  RecentPromptRow,
+} from "@/components/upload/uploadTypes";
 
 export function UploadWorkspace({ recent }: Readonly<{ recent: RecentPromptRow[] }>) {
   const [content, setContent] = useState("");
@@ -14,6 +19,24 @@ export function UploadWorkspace({ recent }: Readonly<{ recent: RecentPromptRow[]
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [error, setError] = useState<string | null>(null);
+  const [analyzerProvider, setAnalyzerProvider] = useState<QualityAnalyzerId>("local");
+  const [providers, setProviders] = useState<QualityAnalyzerProviderOption[]>([
+    {
+      id: "local",
+      label: "Local",
+      description: "Fast offline analysis using the built-in Prompt Quality Engine.",
+      available: true,
+    },
+  ]);
+
+  useEffect(() => {
+    fetch("/api/analyze")
+      .then((r) => r.json())
+      .then((data: { providers?: QualityAnalyzerProviderOption[] }) => {
+        if (data.providers?.length) setProviders(data.providers);
+      })
+      .catch(() => null);
+  }, []);
 
   useEffect(() => {
     if (!isAnalyzing) return;
@@ -34,6 +57,7 @@ export function UploadWorkspace({ recent }: Readonly<{ recent: RecentPromptRow[]
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           content,
+          analyzerProvider,
           ...(process.env.NODE_ENV === "development" ? { debug: true } : {}),
         }),
       });
@@ -59,6 +83,9 @@ export function UploadWorkspace({ recent }: Readonly<{ recent: RecentPromptRow[]
           onAnalyze={analyze}
           isAnalyzing={isAnalyzing}
           error={error}
+          analyzerProvider={analyzerProvider}
+          onAnalyzerProviderChange={setAnalyzerProvider}
+          providers={providers}
         />
         <UploadRecentCard rows={recent} onPick={setContent} />
       </div>

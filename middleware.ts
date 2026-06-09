@@ -44,6 +44,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (pathname.startsWith("/admin") && token.role !== "ADMIN") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/dashboard";
+    url.searchParams.set("error", "access_denied");
+    return NextResponse.redirect(url);
+  }
+
   return NextResponse.next();
 }
 

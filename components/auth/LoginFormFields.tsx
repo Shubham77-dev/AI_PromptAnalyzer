@@ -6,6 +6,7 @@ import { ArrowRightIcon, EmailIcon, EyeIcon, LockIcon } from "@/components/auth/
 import { ButtonGradient } from "@/components/ui/ButtonGradient";
 import { SocialButton } from "@/components/auth/SocialButton";
 import { GoogleMark } from "@/components/auth/GoogleMark";
+import { Spinner } from "@/components/ui/Spinner";
 
 export interface LoginFormFieldsProps {
   email: string;
@@ -14,10 +15,11 @@ export interface LoginFormFieldsProps {
   setPassword: (v: string) => void;
   showPw: boolean;
   setShowPw: (v: boolean) => void;
+  rememberMe: boolean;
+  setRememberMe: (v: boolean) => void;
   error: string | null;
   isPending: boolean;
   showGoogle: boolean;
-  /** When true, only email + submit are shown (`SIMPLE_AUTH_MODE`). */
   simpleAuthMode: boolean;
   onSubmit: (e: FormEvent) => void;
   onGoogle: () => void;
@@ -30,6 +32,8 @@ export function LoginFormFields({
   setPassword,
   showPw,
   setShowPw,
+  rememberMe,
+  setRememberMe,
   error,
   isPending,
   showGoogle,
@@ -54,6 +58,7 @@ export function LoginFormFields({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={isPending}
               className="min-w-0 flex-1 bg-transparent outline-none"
               style={{ color: "var(--pa-text)" }}
             />
@@ -78,15 +83,35 @@ export function LoginFormFields({
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={1}
+                disabled={isPending}
                 className="min-w-0 flex-1 bg-transparent outline-none"
                 style={{ color: "var(--pa-text)" }}
               />
-              <button type="button" className="shrink-0" onClick={() => setShowPw(!showPw)} aria-label="Toggle password">
+              <button
+                type="button"
+                className="shrink-0"
+                onClick={() => setShowPw(!showPw)}
+                aria-label={showPw ? "Hide password" : "Show password"}
+                disabled={isPending}
+              >
                 <EyeIcon style={{ color: "var(--pa-muted)" }} />
               </button>
             </span>
           </div>
         )}
+        {!simpleAuthMode ? (
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              disabled={isPending}
+            />
+            <span className="text-[11px]" style={{ color: "var(--pa-muted)" }}>
+              Remember me
+            </span>
+          </label>
+        ) : null}
         {error ? (
           <p className="text-sm" style={{ color: "var(--pa-acc3)" }} role="alert">
             {error}
@@ -98,7 +123,15 @@ export function LoginFormFields({
           disabled={isPending || !canSubmit}
           className="inline-flex items-center justify-center gap-2 rounded-[10px] py-2.5 text-[13px]"
         >
-          {simpleAuthMode ? "Continue" : "Sign in"} <ArrowRightIcon style={{ color: "white" }} />
+          {isPending ? (
+            <>
+              <Spinner size="sm" /> Signing in…
+            </>
+          ) : (
+            <>
+              {simpleAuthMode ? "Continue" : "Sign In"} <ArrowRightIcon style={{ color: "white" }} />
+            </>
+          )}
         </ButtonGradient>
       </form>
       {showGoogle && !simpleAuthMode ? (
@@ -116,9 +149,9 @@ export function LoginFormFields({
         </>
       ) : null}
       <p className="text-center text-xs" style={{ color: "var(--pa-muted)" }}>
-        No account?{" "}
+        Don&apos;t have an account?{" "}
         <Link href="/signup" style={{ color: "var(--pa-acc1)" }}>
-          Sign up free
+          Sign up
         </Link>
       </p>
     </div>

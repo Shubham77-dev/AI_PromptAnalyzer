@@ -9,6 +9,7 @@ import { normalizeOnly, validatePromptForPublish } from "@/lib/prompt-validator"
 import { runUnifiedPromptAnalysis } from "@/lib/prompt-analysis";
 import {
   buildPromptAnalysisRow,
+  buildPromptQualityFields,
   resolveSavePersistence,
   saveDebugSnapshot,
   type SaveIntent,
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
 
     const saveIntent = parsed.data.saveIntent as SaveIntent;
 
-    const { hybrid, heuristics } = await runUnifiedPromptAnalysis(normalized);
+    const { hybrid, quality } = await runUnifiedPromptAnalysis(normalized);
     console.log("[analyzer-pipeline] unified save snapshot:", {
       saveIntent,
       pipelineStatus: hybrid.status,
@@ -99,7 +100,8 @@ export async function POST(req: Request) {
       });
     }
 
-    const analysisRow = buildPromptAnalysisRow(hybrid, heuristics);
+    const analysisRow = buildPromptAnalysisRow(hybrid, quality);
+    const qualityFields = buildPromptQualityFields(normalized, quality);
 
     const created = await prisma.prompt.create({
       data: {
@@ -109,7 +111,17 @@ export async function POST(req: Request) {
         moderationStatus,
         flagged,
         reason: persistence.reason,
-        score: hybrid.score,
+        score: qualityFields.score,
+        qualityDimensions: qualityFields.qualityDimensions
+          ? (qualityFields.qualityDimensions as Prisma.InputJsonValue)
+          : Prisma.DbNull,
+        promptTypeLabel: qualityFields.promptTypeLabel,
+        maturityLevel: qualityFields.maturityLevel,
+        detectedIntent: qualityFields.detectedIntent,
+        techStack: qualityFields.techStack,
+        searchDomain: qualityFields.searchDomain,
+        searchRole: qualityFields.searchRole,
+        searchKeywords: qualityFields.searchKeywords,
         flags: persistence.flags,
         aiDetails: hybrid.aiDetails ? (hybrid.aiDetails as Prisma.InputJsonValue) : Prisma.DbNull,
         moderationScore: hybrid.score,

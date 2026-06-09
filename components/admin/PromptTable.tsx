@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { SeeMoreText } from "@/components/ui/SeeMoreText";
 import { ButtonOutline } from "@/components/ui/ButtonOutline";
 import { UserAvatar } from "@/components/ui/UserAvatar";
+import { effectiveDisplayScore } from "@/lib/prompt-display-score";
 
 export type AdminPromptsSearchParams = {
   status?: "PUBLISHED" | "DRAFT" | "UNDER_REVIEW" | "all";
@@ -30,12 +31,6 @@ function parseScore(v: string | undefined) {
   const n = Number(v);
   if (!Number.isFinite(n)) return null;
   return Math.max(0, Math.min(100, n));
-}
-
-function effectiveScore(p: { score: number | null; analysis: { accuracy: number | null } | null }) {
-  if (typeof p.score === "number" && Number.isFinite(p.score)) return Math.round(p.score);
-  const acc = p.analysis?.accuracy;
-  return typeof acc === "number" && Number.isFinite(acc) ? acc : null;
 }
 
 function initials(email: string) {
@@ -201,8 +196,7 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
       <div className="grid gap-3 p-4 md:hidden">
         {prompts.map((p) => {
           const likes = p.stats?.likes ?? 0;
-          const score = effectiveScore({ score: p.score ?? null, analysis: { accuracy: p.analysis?.accuracy ?? null } });
-          const canPublish = typeof score === "number" && score >= 50;
+          const score = effectiveDisplayScore(p);
           return (
             <div
               key={p.id}
@@ -269,8 +263,6 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
                     promptId={p.id}
                     status={p.status}
                     size="md"
-                    disabled={!canPublish && p.status !== "PUBLISHED"}
-                    disabledReason={!canPublish ? "Publish requires score ≥ 50" : undefined}
                   />
                 </div>
                 <form action={adminRemovePrompt} className="flex-1">
@@ -311,8 +303,7 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
           <tbody>
             {prompts.map((p) => {
               const likes = p.stats?.likes ?? 0;
-              const score = effectiveScore({ score: p.score ?? null, analysis: { accuracy: p.analysis?.accuracy ?? null } });
-              const canPublish = typeof score === "number" && score >= 50;
+              const score = effectiveDisplayScore(p);
               const authorEmail = p.user.email;
               const authorLabel = labelFromEmail(authorEmail);
               const isFlagged = Boolean(p.flagged);
@@ -400,12 +391,7 @@ export async function PromptTable({ searchParams }: Readonly<{ searchParams: Adm
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <ButtonOutline href={viewHref(searchParams, p.id)}>View</ButtonOutline>
-                      <PublishToggle
-                        promptId={p.id}
-                        status={p.status}
-                        disabled={!canPublish && p.status !== "PUBLISHED"}
-                        disabledReason={!canPublish ? "Publish requires score ≥ 50" : undefined}
-                      />
+                      <PublishToggle promptId={p.id} status={p.status} />
                       <form action={adminRemovePrompt}>
                         <input type="hidden" name="promptId" value={p.id} />
                         <button type="submit" className="pa-admin-suspend">

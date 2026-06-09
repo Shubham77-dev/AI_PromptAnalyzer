@@ -48,7 +48,10 @@ function toCanonHeading(raw: string): Canon | null {
 function extractRoleInline(lines: string[]) {
   for (const l of lines) {
     const line = l.trim();
-    if (/^(you are|act as)\b/i.test(line)) return line;
+    if (/^(you are|act as)\b/i.test(line)) {
+      const clause = /^((?:you are|act as)[^.]+\.)/i.exec(line);
+      return clause?.[1]?.trim() ?? (line.length <= 80 ? line : undefined);
+    }
     const m = /^role:\s*(.+)$/i.exec(line);
     if (m?.[1]) return `You are ${m[1].trim()}.`;
   }
@@ -89,13 +92,26 @@ export function parsePrompt(content: string): ParsedPrompt {
 
   for (const raw of lines) {
     const line = raw.trimEnd();
-    const headingMatch = /^(#{1,6})\s+(.+?)\s*$/.exec(line.trim());
+    const trimmed = line.trim();
+
+    const headingMatch = /^(#{1,6})\s+(.+?)\s*$/.exec(trimmed);
     if (headingMatch) {
       const hRaw = headingMatch[2] ?? "";
       const hNorm = normalizeHeading(hRaw);
       headingCounts[hNorm] = (headingCounts[hNorm] ?? 0) + 1;
       current = toCanonHeading(hRaw);
       continue;
+    }
+
+    const colonHeading = /^([^:]{2,48}):\s*$/.exec(trimmed);
+    if (colonHeading?.[1]) {
+      const canon = toCanonHeading(colonHeading[1]);
+      if (canon) {
+        const hNorm = normalizeHeading(colonHeading[1]);
+        headingCounts[hNorm] = (headingCounts[hNorm] ?? 0) + 1;
+        current = canon;
+        continue;
+      }
     }
 
     if (current === null) {
@@ -133,8 +149,10 @@ export function parsePrompt(content: string): ParsedPrompt {
   if (!parsed.role && roleInline) parsed.role = roleInline;
 
   if (!parsed.goal) {
-    const body = preHeadingLines.join("\n").trim();
-    if (body) parsed.goal = body;
+    const goalLines = preHeadingLines
+      .map((l) => l.trim())
+      .filter((l) => l && !/^(you are|act as)\b/i.test(l));
+    if (goalLines.length) parsed.goal = goalLines.join("\n").trim();
   }
 
   const outputInline = extractOutputFormatInline(text);

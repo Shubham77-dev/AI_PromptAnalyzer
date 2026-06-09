@@ -9,6 +9,8 @@ import { ScoreBar } from "@/components/ui/ScoreBar";
 import { ScorePill } from "@/components/ui/ScorePill";
 import { SuggestionItem } from "@/components/ui/SuggestionItem";
 import { UserAvatar } from "@/components/ui/UserAvatar";
+import { formatDateTimeStable } from "@/lib/format-date";
+import type { SearchMatchReason } from "@/lib/library-search";
 
 export interface LibraryPrompt {
   id: string;
@@ -17,6 +19,12 @@ export interface LibraryPrompt {
   user: { email: string };
   analysis: { accuracy: number; clarity: number; suggestions: string } | null;
   stats: { likes: number } | null;
+  promptTypeLabel?: string | null;
+  detectedIntent?: string | null;
+  techStack?: string[];
+  searchDomain?: string | null;
+  searchRole?: string | null;
+  searchKeywords?: string[];
 }
 
 function initials(email: string) {
@@ -33,7 +41,15 @@ function barTone(score: number) {
   return "var(--pa-acc3)";
 }
 
-export function PromptCard({ prompt }: Readonly<{ prompt: LibraryPrompt }>) {
+export function PromptCard({
+  prompt,
+  matchReasons,
+  onAddFilterTag,
+}: Readonly<{
+  prompt: LibraryPrompt;
+  matchReasons?: SearchMatchReason[];
+  onAddFilterTag?: (tag: string) => void;
+}>) {
   const router = useRouter();
   const [likes, setLikes] = useState(prompt.stats?.likes ?? 0);
   const [liked, setLiked] = useState(false);
@@ -42,7 +58,7 @@ export function PromptCard({ prompt }: Readonly<{ prompt: LibraryPrompt }>) {
   const [likePending, setLikePending] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const date = useMemo(() => new Date(prompt.createdAt).toLocaleString(), [prompt.createdAt]);
+  const date = useMemo(() => formatDateTimeStable(prompt.createdAt), [prompt.createdAt]);
   const av = useMemo(() => initials(prompt.user.email), [prompt.user.email]);
   const accuracy = prompt.analysis?.accuracy ?? 0;
   const clarity = prompt.analysis?.clarity ?? 0;
@@ -150,6 +166,50 @@ export function PromptCard({ prompt }: Readonly<{ prompt: LibraryPrompt }>) {
       >
         {prompt.content}
       </div>
+      {matchReasons && matchReasons.length > 0 ? (
+        <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1">
+          {matchReasons.slice(0, 3).map((r) => (
+            <span key={`${r.field}-${r.label}`} style={{ fontSize: 10, color: "var(--pa-muted)" }}>
+              Matched: {r.field === "techStack" ? "Tech Stack" : r.field === "detectedIntent" ? "Intent" : r.field === "promptType" ? "Prompt type" : r.field.charAt(0).toUpperCase() + r.field.slice(1)} → {r.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {(prompt.techStack?.length || prompt.searchDomain || prompt.promptTypeLabel) ? (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {prompt.promptTypeLabel ? (
+            <button
+              type="button"
+              onClick={() => onAddFilterTag?.(prompt.promptTypeLabel!)}
+              className="rounded-full border-0 px-2 py-0.5"
+              style={{ fontSize: 9, background: "var(--pa-hint)", color: "var(--pa-acc1)", cursor: onAddFilterTag ? "pointer" : "default" }}
+            >
+              {prompt.promptTypeLabel}
+            </button>
+          ) : null}
+          {prompt.searchDomain ? (
+            <button
+              type="button"
+              onClick={() => onAddFilterTag?.(prompt.searchDomain!)}
+              className="rounded-full border-0 px-2 py-0.5"
+              style={{ fontSize: 9, background: "var(--pa-hint)", color: "var(--pa-muted)", cursor: onAddFilterTag ? "pointer" : "default" }}
+            >
+              {prompt.searchDomain}
+            </button>
+          ) : null}
+          {prompt.techStack?.slice(0, 3).map((tech) => (
+            <button
+              key={tech}
+              type="button"
+              onClick={() => onAddFilterTag?.(tech)}
+              className="rounded-full border-0 px-2 py-0.5"
+              style={{ fontSize: 9, background: "var(--pa-hint)", color: "var(--pa-muted)", cursor: onAddFilterTag ? "pointer" : "default" }}
+            >
+              {tech}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {isLong ? (
         <button
           type="button"

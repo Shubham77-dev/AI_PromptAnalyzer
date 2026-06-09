@@ -20,20 +20,19 @@ export async function PATCH(_req: NextRequest, ctx: { params: Promise<{ id: stri
     where: { id: parsed.data.id },
     select: { id: true, status: true },
   });
-
   if (!prompt) {
     return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
   }
 
-  if (prompt.status !== "PUBLISHED") {
-    return NextResponse.json({ success: true, message: "Already unpublished" });
-  }
-
   const updated = await prisma.prompt.update({
     where: { id: prompt.id },
-    data: { status: "DRAFT" },
+    data: {
+      status: "UNDER_REVIEW",
+      moderationStatus: "PENDING",
+      flagged: true,
+      reason: "Unpublished by admin — pending review.",
+    },
   });
 
   return NextResponse.json({ success: true, prompt: updated });
 }
-

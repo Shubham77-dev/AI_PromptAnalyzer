@@ -6,7 +6,7 @@
 export type RoutedModel = {
   /** Provider-specific model id passed to the AI layer */
   modelId: string;
-  provider: "openai";
+  provider: "openai" | "ollama" | "local";
 };
 
 function complexityHint(content: string): number {

@@ -23,6 +23,7 @@ export function PublishToggle({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [confirmUnpublishOpen, setConfirmUnpublishOpen] = useState(false);
+  const [confirmPublishOpen, setConfirmPublishOpen] = useState(false);
   const isPublished = status === "PUBLISHED";
 
   const classes = useMemo(() => {
@@ -71,7 +72,7 @@ export function PublishToggle({
         disabled={isDisabled}
         onClick={() => {
           if (isPublished) setConfirmUnpublishOpen(true);
-          else void doPublish();
+          else setConfirmPublishOpen(true);
         }}
         className={classes}
         title={title}
@@ -88,6 +89,35 @@ export function PublishToggle({
       >
         {busy ? "Working…" : isPublished ? "Unpublish" : "Publish"}
       </button>
+
+      {confirmPublishOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "var(--pa-overlay)" }}>
+          <Card className="w-full max-w-md">
+            <div className="p-5">
+              <div className="text-sm font-semibold" style={{ color: "var(--pa-text)" }}>
+                Publish this prompt to the public library?
+              </div>
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <ButtonOutline type="button" onClick={() => setConfirmPublishOpen(false)} disabled={busy}>
+                  Cancel
+                </ButtonOutline>
+                <button
+                  type="button"
+                  className="pa-btn-transition rounded-lg px-3 py-2 text-sm font-semibold text-white"
+                  style={{ background: "var(--pa-acc2)" }}
+                  onClick={() => {
+                    setConfirmPublishOpen(false);
+                    void doPublish();
+                  }}
+                  disabled={busy}
+                >
+                  Yes, publish
+                </button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      ) : null}
 
       {confirmUnpublishOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "var(--pa-overlay)" }}>

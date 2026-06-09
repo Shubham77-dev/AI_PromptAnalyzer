@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "prisma generate && next dev",
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
@@ -12,7 +12,9 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:migrate-default-passwords": "npx --yes tsx prisma/migrate-default-passwords.ts",
+    "test:analyzer": "npx --yes tsx --test lib/deterministic-analyzer/promptPresence.test.ts lib/quality-analyzer/router.test.ts lib/quality-analyzer/parse.test.ts lib/clean-improved-prompt.test.ts lib/analyzer/moderationRouter.test.ts lib/prompt-duplicates.test.ts lib/library-search.test.ts lib/password-policy.test.ts"
   },
   "prisma": {
     "seed": "node prisma/seed.mjs"

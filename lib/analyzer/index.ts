@@ -1,34 +1,59 @@
 /**
  * Hybrid prompt analyzer: rules → (optional) AI → weighted score → moderation decision.
- * Model routing stays internal — do not expose to API consumers.
+ * Moderation AI fallback: OpenAI → Ollama → local rules scoring.
  */
 
-import { analyzeWithAI } from "./aiAnalyzer";
-import { selectModel } from "./modelRouter";
+import { analyzeWithModerationProviders } from "./moderationRouter";
 import { analyzeWithRules } from "./ruleEngine";
 import { calculateFinalScore } from "./scoringEngine";
+import type { ModerationProviderId } from "./moderationAiShared";
 
 function clampHybridScore(n: number): number {
   if (!Number.isFinite(n)) return 1;
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
+const MODERATION_PROVIDER_LABELS: Record<ModerationProviderId, string> = {
+  openai: "OpenAI",
+  ollama: "Ollama",
+  local: "Local rules",
+};
+
 export type HybridAnalyzeResult = {
   status: "approved" | "pending" | "rejected";
   score: number;
   flags: string[];
   /**
-   * "rule" when AI was skipped/unavailable; "rule+ai" when blended with AI.
-   * This is safe to expose to API consumers.
+   * "rule" when only local rules drove the score without AI blend;
+   * "rule+ai" when an AI provider (OpenAI, Ollama, or local AI scoring) contributed.
    */
   source: "rule" | "rule+ai";
   /**
-   * "ok" when AI contributed to the blend; "error" when AI was unavailable;
+   * "ok" when a moderation provider succeeded;
+   * "error" when all providers failed unexpectedly;
    * "skipped" when AI was intentionally not used (e.g. severe rule failure).
    */
   aiStatus: "ok" | "error" | "skipped";
   aiDetails?: Record<string, unknown>;
 };
+
+function buildAiSuccessDetails(
+  provider: ModerationProviderId,
+  model: string,
+  scores: Record<string, unknown>,
+  fallbacks: ModerationProviderId[],
+  ruleWarnings?: string[],
+): Record<string, unknown> {
+  const details: Record<string, unknown> = {
+    provider,
+    providerLabel: MODERATION_PROVIDER_LABELS[provider],
+    model,
+    scores,
+  };
+  if (fallbacks.length > 0) details.fallbacks = fallbacks;
+  if (ruleWarnings?.length) details.ruleWarnings = ruleWarnings;
+  return details;
+}
 
 /**
  * End-to-end analysis for prompt creation / moderation.
@@ -52,40 +77,17 @@ export async function analyzePrompt(content: string): Promise<HybridAnalyzeResul
     };
   }
 
-  const routed = selectModel(content);
-  const ai = await analyzeWithAI(content, routed.modelId);
+  const { outcome, fallbacks } = await analyzeWithModerationProviders(content, rules.score, rules.flags);
 
-  if (!ai.ok) {
-    // AI failure must not corrupt the outcome. Use rule score as the final score.
-    console.error("[analyzer-pipeline] AI unavailable; using rule-only score:", ai.error);
-    const ruleOnlyScore = clampHybridScore(rules.score);
-    const { decision } = calculateFinalScore(ruleOnlyScore, ruleOnlyScore);
-    return {
-      status: decision,
-      score: ruleOnlyScore,
-      flags: Array.from(new Set([...rules.flags, "analyzer_error"])),
-      source: "rule",
-      aiStatus: "error",
-      aiDetails: {
-        provider: routed.provider,
-        modelAttempted: routed.modelId,
-        aiError: ai.error,
-        ruleScore: rules.score,
-      },
-    };
-  }
+  const aiDetails = buildAiSuccessDetails(
+    outcome.provider,
+    outcome.model,
+    outcome.scores,
+    fallbacks,
+    rules.passed ? undefined : rules.flags,
+  );
 
-  const aiDetails: Record<string, unknown> = {
-    provider: routed.provider,
-    model: ai.model,
-    scores: ai.scores,
-  };
-
-  if (!rules.passed) {
-    aiDetails.ruleWarnings = rules.flags;
-  }
-
-  const { finalScore, decision } = calculateFinalScore(rules.score, ai.scores.finalScore);
+  const { finalScore, decision } = calculateFinalScore(rules.score, outcome.scores.finalScore);
 
   return {
     status: decision,
@@ -109,7 +111,7 @@ export async function analyzePromptWithRecovery(content: string): Promise<Hybrid
     const rules = analyzeWithRules(content);
     const { finalScore, decision } = calculateFinalScore(rules.score, rules.score);
     const status: HybridAnalyzeResult["status"] = rules.severeFailure ? "rejected" : decision;
-    const score = clampHybridScore(rules.score);
+    const score = clampHybridScore(finalScore);
     return {
       status,
       score,
@@ -124,3 +126,5 @@ export async function analyzePromptWithRecovery(content: string): Promise<Hybrid
     };
   }
 }
+
+export { MODERATION_PROVIDER_LABELS };

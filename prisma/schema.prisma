@@ -81,6 +81,18 @@ model Prompt {
   aiDetails Json?
   moderationScore Float?
   moderationRaw Json?
+  /// Six-dimension quality scores from upload preview analyzer.
+  qualityDimensions Json?
+  promptTypeLabel String?
+  maturityLevel String?
+  detectedIntent String?
+  techStack String[] @default([])
+  searchDomain String?
+  searchRole String?
+  searchKeywords String[] @default([])
+  rejectReason String?
+  reviewedAt DateTime?
+  reviewedById String?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 

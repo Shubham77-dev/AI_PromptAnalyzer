@@ -1,0 +1,6 @@
+-- Smart library search metadata
+ALTER TABLE "Prompt" ADD COLUMN IF NOT EXISTS "detectedIntent" TEXT;
+ALTER TABLE "Prompt" ADD COLUMN IF NOT EXISTS "techStack" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "Prompt" ADD COLUMN IF NOT EXISTS "searchDomain" TEXT;
+ALTER TABLE "Prompt" ADD COLUMN IF NOT EXISTS "searchRole" TEXT;
+ALTER TABLE "Prompt" ADD COLUMN IF NOT EXISTS "searchKeywords" TEXT[] DEFAULT ARRAY[]::TEXT[];

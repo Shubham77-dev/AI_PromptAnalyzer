@@ -2,6 +2,12 @@ import type { HybridAnalyzeResult } from "@/lib/analyzer";
 import { AUTO_PUBLISH_THRESHOLD_EXCLUSIVE } from "@/lib/analyzer/scoringEngine";
 import type { AnalyzerResult } from "@/lib/ai";
 import type { PromptValidationResult } from "@/lib/prompt-validator";
+import {
+  buildAnalysisRowFromQuality,
+  displayScoreFromQuality,
+  qualityDimensionsFromResult,
+} from "@/lib/prompt-display-score";
+import { buildSearchMetadataFields } from "@/lib/prompt-search-metadata";
 
 export type SaveIntent = "draft" | "publish";
 
@@ -36,24 +42,19 @@ function buildHybridReason(hybrid: HybridAnalyzeResult): string {
 
 export function buildPromptAnalysisRow(
   hybrid: HybridAnalyzeResult,
-  heuristics: AnalyzerResult,
+  quality: AnalyzerResult,
 ): { accuracy: number; clarity: number; suggestions: string } {
-  const score = Math.round(hybrid.score);
-  const suggestionsText = [
-    `Hybrid score (same as library): ${score}`,
-    hybrid.flags.length ? `Flags:\n- ${hybrid.flags.join("\n- ")}` : "",
-    heuristics.issues.length ? `Heuristic issues:\n- ${heuristics.issues.join("\n- ")}` : "",
-    heuristics.suggestions.length ? `Suggestions:\n- ${heuristics.suggestions.join("\n- ")}` : "",
-    `Improved prompt (template):\n${heuristics.improvedPrompt}`,
-  ]
-    .filter(Boolean)
-    .join("\n\n")
-    .slice(0, 10_000);
+  return buildAnalysisRowFromQuality(hybrid, quality);
+}
 
+export function buildPromptQualityFields(content: string, quality: AnalyzerResult) {
+  const searchFields = buildSearchMetadataFields(content, quality);
   return {
-    accuracy: score,
-    clarity: score,
-    suggestions: suggestionsText,
+    score: displayScoreFromQuality(quality),
+    qualityDimensions: qualityDimensionsFromResult(quality),
+    promptTypeLabel: quality.promptTypeLabel ?? quality.promptType ?? null,
+    maturityLevel: quality.review?.promptMaturityLevel ?? null,
+    ...searchFields,
   };
 }
 

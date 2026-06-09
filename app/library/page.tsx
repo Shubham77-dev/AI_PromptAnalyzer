@@ -4,28 +4,15 @@ import type { LibraryPrompt } from "@/components/library/PromptCard";
 import { PageMeta } from "@/components/layout/PageMeta";
 import { GlowLine } from "@/components/ui/GlowLine";
 
-export default async function LibraryPage({
-  searchParams,
-}: Readonly<{ searchParams: { q?: string } }>) {
-  const { q } = searchParams;
-  const query = (q || "").trim();
-
+export default async function LibraryPage() {
   const prompts = await prisma.prompt
     .findMany({
       where: {
         status: "PUBLISHED",
         moderationStatus: "APPROVED",
-        ...(query
-          ? {
-              content: {
-                contains: query,
-                mode: "insensitive",
-              },
-            }
-          : {}),
       },
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: 200,
       include: {
         user: { select: { email: true } },
         analysis: true,
@@ -48,6 +35,12 @@ export default async function LibraryPage({
           }
         : null,
       stats: p.stats ? { likes: p.stats.likes } : null,
+      promptTypeLabel: p.promptTypeLabel,
+      detectedIntent: p.detectedIntent,
+      techStack: p.techStack,
+      searchDomain: p.searchDomain,
+      searchRole: p.searchRole,
+      searchKeywords: p.searchKeywords,
     })) ?? [];
 
   return (

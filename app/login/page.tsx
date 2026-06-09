@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { auth } from "@/auth";
 import { LoginForm } from "@/components/auth/LoginForm";
+import { DefaultPasswordBanner } from "@/components/auth/DefaultPasswordBanner";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { LogoOrb } from "@/components/ui/LogoOrb";
 import { SIMPLE_AUTH_MODE } from "@/lib/auth-flags";
@@ -35,6 +36,7 @@ export default async function LoginPage() {
             </p>
           </div>
           <Suspense fallback={<div className="text-center text-xs" style={{ color: "var(--pa-muted)" }}>Loading…</div>}>
+            <DefaultPasswordBanner />
             <LoginForm showGoogle={showGoogle} />
           </Suspense>
         </AuthCard>

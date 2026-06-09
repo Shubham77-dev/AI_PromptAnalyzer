@@ -8,7 +8,7 @@ import { validatePasswordStrength } from "@/lib/password-policy";
 const BodySchema = z.object({
   email: z.email().max(320),
   password: z.string().min(8).max(256),
-  name: z.string().trim().min(1).max(120).optional(),
+  name: z.string().trim().min(1).max(50).optional(),
 });
 
 export async function POST(req: Request) {
@@ -16,8 +16,9 @@ export async function POST(req: Request) {
     const json = await req.json().catch(() => null);
     const parsed = BodySchema.safeParse(json);
     if (!parsed.success) {
+      const first = parsed.error.issues[0]?.message;
       return NextResponse.json(
-        { error: "Invalid input", issues: parsed.error.issues },
+        { error: first ?? "Invalid input" },
         { status: 400 },
       );
     }
@@ -33,19 +34,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: strength.error }, { status: 400 });
     }
 
+    const existing = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (existing) {
+      return NextResponse.json(
+        { error: "An account with this email already exists" },
+        { status: 409 },
+      );
+    }
+
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
 
-    await prisma.user.create({
+    const created = await prisma.user.create({
       data: {
         email,
         password: passwordHash,
         name: parsed.data.name?.trim() || null,
         role: "USER",
       },
-      select: { id: true, email: true },
+      select: { id: true, email: true, name: true, role: true },
     });
 
-    return NextResponse.json({ ok: true, message: "Account created. You can sign in." });
+    return NextResponse.json(
+      {
+        user: {
+          id: created.id,
+          email: created.email,
+          name: created.name,
+          role: created.role.toLowerCase(),
+        },
+      },
+      { status: 201 },
+    );
   } catch (e) {
     const mapped = prismaKnownRequestResponse(e);
     if (mapped) {
@@ -54,7 +76,7 @@ export async function POST(req: Request) {
 
     const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: string }).code) : "";
     if (code === "P2002") {
-      return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 });
+      return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
     }
 
     console.error("[auth/signup]", e);

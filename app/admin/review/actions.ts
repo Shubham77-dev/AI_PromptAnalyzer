@@ -12,35 +12,18 @@ async function requireAdmin() {
   return user!;
 }
 
-const MIN_ADMIN_PUBLISH_SCORE = 50;
-
-function effectiveScore(prompt: { score: number | null; analysis: { accuracy: number } | null }) {
-  if (typeof prompt.score === "number" && Number.isFinite(prompt.score)) return prompt.score;
-  const acc = prompt.analysis?.accuracy;
-  return typeof acc === "number" && Number.isFinite(acc) ? acc : null;
-}
-
 export async function adminApprovePrompt(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const parsed = z.object({ promptId: z.string().uuid() }).safeParse(Object.fromEntries(formData));
   if (!parsed.success) throw new Error("Invalid input");
 
   const prompt = await prisma.prompt.findUnique({
     where: { id: parsed.data.promptId },
-    select: { id: true, moderationStatus: true, score: true, analysis: { select: { accuracy: true } } },
+    select: { id: true, moderationStatus: true },
   });
   if (!prompt) throw new Error("Not found");
-
-  // Idempotent: already approved.
   if (prompt.moderationStatus === "APPROVED") return;
-
   forbidIfNot(prompt.moderationStatus === "PENDING", "Prompt is not pending review");
-
-  const score = effectiveScore(prompt);
-  forbidIfNot(
-    typeof score === "number" && score >= MIN_ADMIN_PUBLISH_SCORE,
-    `Publish requires score ≥ ${MIN_ADMIN_PUBLISH_SCORE}`,
-  );
 
   await prisma.prompt.update({
     where: { id: prompt.id },
@@ -49,6 +32,9 @@ export async function adminApprovePrompt(formData: FormData) {
       moderationStatus: "APPROVED",
       flagged: false,
       reason: "Approved by admin.",
+      rejectReason: null,
+      reviewedAt: new Date(),
+      reviewedById: admin.id,
     },
   });
 
@@ -59,7 +45,7 @@ export async function adminApprovePrompt(formData: FormData) {
 }
 
 export async function adminRejectPrompt(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const parsed = z
     .object({
       promptId: z.string().uuid(),
@@ -73,9 +59,9 @@ export async function adminRejectPrompt(formData: FormData) {
     select: { id: true, moderationStatus: true },
   });
   if (!prompt) throw new Error("Not found");
-
-  // Idempotent: already rejected.
   if (prompt.moderationStatus === "REJECTED") return;
+
+  const rejectReason = parsed.data.reason?.trim() || "Rejected by admin.";
 
   await prisma.prompt.update({
     where: { id: prompt.id },
@@ -83,7 +69,10 @@ export async function adminRejectPrompt(formData: FormData) {
       status: "DRAFT",
       moderationStatus: "REJECTED",
       flagged: true,
-      reason: parsed.data.reason?.trim() ? parsed.data.reason.trim() : "Rejected by admin.",
+      reason: rejectReason,
+      rejectReason,
+      reviewedAt: new Date(),
+      reviewedById: admin.id,
     },
   });
 
@@ -92,4 +81,3 @@ export async function adminRejectPrompt(formData: FormData) {
   revalidatePath("/dashboard");
   revalidatePath("/library");
 }
-

@@ -63,6 +63,28 @@ export const TECH_KEYWORDS = [
   "openai",
 ];
 
+export const FRAMEWORK_KEYWORDS = [
+  "react",
+  "vue",
+  "angular",
+  "next.js",
+  "nuxt",
+  "svelte",
+  "express",
+  "fastify",
+  "django",
+  "flask",
+  "spring",
+  "rails",
+  "laravel",
+  "tailwind",
+  "mui",
+  "shadcn",
+  "bootstrap",
+  "prisma",
+  "drizzle",
+];
+
 export const OUTPUT_FORMAT_KEYWORDS = [
   "json",
   "markdown",

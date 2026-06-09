@@ -1,24 +1,23 @@
 "use client";
 
+import { passwordStrengthTier } from "@/lib/password-policy";
+
 export interface PasswordStrengthProps {
   password: string;
 }
 
-function tier(pw: string): { filled: number; label: string; segColor: string } {
-  const n = pw.length;
-  if (n < 4) return { filled: 0, label: "", segColor: "var(--pa-hint)" };
-  let score = 0;
-  if (n >= 8) score += 1;
-  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score += 1;
-  if (/\d/.test(pw)) score += 1;
-  if (/[^A-Za-z0-9]/.test(pw)) score += 1;
-  if (score <= 1) return { filled: 1, label: "Weak", segColor: "var(--pa-acc3)" };
-  if (score <= 3) return { filled: Math.min(3, score + 1), label: "Medium", segColor: "var(--pa-acc4)" };
-  return { filled: 4, label: "Strong", segColor: "var(--pa-acc2)" };
-}
+const TIER_STYLES = {
+  weak: { filled: 1, label: "Weak", segColor: "var(--pa-acc3)" },
+  fair: { filled: 2, label: "Fair", segColor: "#f59e0b" },
+  strong: { filled: 4, label: "Strong", segColor: "var(--pa-acc2)" },
+} as const;
 
 export function PasswordStrength({ password }: Readonly<PasswordStrengthProps>) {
-  const { filled, label, segColor } = tier(password);
+  const tier = passwordStrengthTier(password);
+  if (tier === "none") return null;
+
+  const { filled, label, segColor } = TIER_STYLES[tier === "weak" ? "weak" : tier === "fair" ? "fair" : "strong"];
+
   return (
     <div className="mt-2 flex items-center gap-2">
       <div className="flex flex-1 gap-1" style={{ gap: 4 }}>
@@ -30,11 +29,9 @@ export function PasswordStrength({ password }: Readonly<PasswordStrengthProps>) 
           />
         ))}
       </div>
-      {label ? (
-        <span className="shrink-0 text-[10px]" style={{ color: "var(--pa-muted)" }}>
-          {label}
-        </span>
-      ) : null}
+      <span className="shrink-0 text-[10px]" style={{ color: segColor }}>
+        {label}
+      </span>
     </div>
   );
 }

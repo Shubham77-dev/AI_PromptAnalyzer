@@ -2,12 +2,13 @@
 
 import type { FormEvent } from "react";
 import Link from "next/link";
-import { EmailIcon } from "@/components/auth/AuthIcons";
+import { EmailIcon, EyeIcon } from "@/components/auth/AuthIcons";
 import { ButtonGradient } from "@/components/ui/ButtonGradient";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
 import { PlanSelector, type PlanChoice } from "@/components/auth/PlanSelector";
 import { SocialButton } from "@/components/auth/SocialButton";
 import { GoogleMark } from "@/components/auth/GoogleMark";
+import { Spinner } from "@/components/ui/Spinner";
 
 export interface SignupFormFieldsProps {
   first: string;
@@ -18,15 +19,29 @@ export interface SignupFormFieldsProps {
   setEmail: (v: string) => void;
   password: string;
   setPassword: (v: string) => void;
+  confirmPassword: string;
+  setConfirmPassword: (v: string) => void;
+  showPw: boolean;
+  setShowPw: (v: boolean) => void;
+  showConfirmPw: boolean;
+  setShowConfirmPw: (v: boolean) => void;
   plan: PlanChoice;
   setPlan: (p: PlanChoice) => void;
   terms: boolean;
   setTerms: (v: boolean) => void;
   error: string | null;
+  success: string | null;
+  fieldErrors: { email?: string; password?: string; confirmPassword?: string };
+  setFieldErrors: (v: { email?: string; password?: string; confirmPassword?: string }) => void;
   isPending: boolean;
   showGoogle: boolean;
   onSubmit: (e: FormEvent) => void;
   onGoogle: () => void;
+  validatePasswordStrength: (password: string) => { ok: true } | { ok: false; error: string };
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 export function SignupFormFields({
@@ -38,15 +53,25 @@ export function SignupFormFields({
   setEmail,
   password,
   setPassword,
+  confirmPassword,
+  setConfirmPassword,
+  showPw,
+  setShowPw,
+  showConfirmPw,
+  setShowConfirmPw,
   plan,
   setPlan,
   terms,
   setTerms,
   error,
+  success,
+  fieldErrors,
+  setFieldErrors,
   isPending,
   showGoogle,
   onSubmit,
   onGoogle,
+  validatePasswordStrength,
 }: Readonly<SignupFormFieldsProps>) {
   return (
     <div className="grid gap-5">
@@ -56,13 +81,26 @@ export function SignupFormFields({
             <span className="text-[11px]" style={{ color: "var(--pa-muted)" }}>
               First name
             </span>
-            <input className="pa-input w-full" value={first} onChange={(e) => setFirst(e.target.value)} maxLength={60} />
+            <input
+              className="pa-input w-full"
+              value={first}
+              onChange={(e) => setFirst(e.target.value)}
+              maxLength={60}
+              disabled={isPending}
+              placeholder="Your name (optional)"
+            />
           </label>
           <label className="grid gap-1">
             <span className="text-[11px]" style={{ color: "var(--pa-muted)" }}>
               Last name
             </span>
-            <input className="pa-input w-full" value={last} onChange={(e) => setLast(e.target.value)} maxLength={60} />
+            <input
+              className="pa-input w-full"
+              value={last}
+              onChange={(e) => setLast(e.target.value)}
+              maxLength={60}
+              disabled={isPending}
+            />
           </label>
         </div>
         <label className="grid gap-1">
@@ -76,27 +114,104 @@ export function SignupFormFields({
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => {
+                if (!email.trim()) setFieldErrors({ ...fieldErrors, email: "Email is required." });
+                else if (!isValidEmail(email)) setFieldErrors({ ...fieldErrors, email: "Enter a valid email address." });
+                else setFieldErrors({ ...fieldErrors, email: undefined });
+              }}
               required
+              disabled={isPending}
               className="min-w-0 flex-1 bg-transparent outline-none"
               style={{ color: "var(--pa-text)" }}
             />
           </span>
+          {fieldErrors.email ? (
+            <span className="text-[11px]" style={{ color: "var(--pa-acc3)" }}>
+              {fieldErrors.email}
+            </span>
+          ) : null}
         </label>
         <label className="grid gap-1">
           <span className="text-[11px]" style={{ color: "var(--pa-muted)" }}>
             Password
           </span>
-          <input
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={8}
-            maxLength={256}
-            className="pa-input w-full"
-          />
+          <span className="flex items-center gap-2 pa-input">
+            <input
+              type={showPw ? "text" : "password"}
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onBlur={() => {
+                const strength = validatePasswordStrength(password);
+                setFieldErrors({
+                  ...fieldErrors,
+                  password: strength.ok ? undefined : strength.error,
+                });
+              }}
+              required
+              minLength={8}
+              maxLength={256}
+              disabled={isPending}
+              className="min-w-0 flex-1 bg-transparent outline-none"
+              style={{ color: "var(--pa-text)" }}
+            />
+            <button
+              type="button"
+              className="shrink-0"
+              onClick={() => setShowPw(!showPw)}
+              aria-label={showPw ? "Hide password" : "Show password"}
+              disabled={isPending}
+            >
+              <EyeIcon style={{ color: "var(--pa-muted)" }} />
+            </button>
+          </span>
+          <span className="text-[10px]" style={{ color: "var(--pa-muted)" }}>
+            At least 8 characters, 1 uppercase letter, 1 number
+          </span>
           <PasswordStrength password={password} />
+          {fieldErrors.password ? (
+            <span className="text-[11px]" style={{ color: "var(--pa-acc3)" }}>
+              {fieldErrors.password}
+            </span>
+          ) : null}
+        </label>
+        <label className="grid gap-1">
+          <span className="text-[11px]" style={{ color: "var(--pa-muted)" }}>
+            Confirm password
+          </span>
+          <span className="flex items-center gap-2 pa-input">
+            <input
+              type={showConfirmPw ? "text" : "password"}
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              onBlur={() => {
+                setFieldErrors({
+                  ...fieldErrors,
+                  confirmPassword:
+                    confirmPassword !== password ? "Passwords do not match" : undefined,
+                });
+              }}
+              required
+              disabled={isPending}
+              className="min-w-0 flex-1 bg-transparent outline-none"
+              style={{ color: "var(--pa-text)" }}
+            />
+            <button
+              type="button"
+              className="shrink-0"
+              onClick={() => setShowConfirmPw(!showConfirmPw)}
+              aria-label={showConfirmPw ? "Hide confirm password" : "Show confirm password"}
+              disabled={isPending}
+            >
+              <EyeIcon style={{ color: "var(--pa-muted)" }} />
+            </button>
+          </span>
+          {fieldErrors.confirmPassword ? (
+            <span className="text-[11px]" style={{ color: "var(--pa-acc3)" }}>
+              {fieldErrors.confirmPassword}
+            </span>
+          ) : null}
         </label>
         <div className="grid gap-2">
           <div className="text-[11px]" style={{ color: "var(--pa-muted)" }}>
@@ -110,6 +225,7 @@ export function SignupFormFields({
             role="checkbox"
             aria-checked={terms}
             onClick={() => setTerms(!terms)}
+            disabled={isPending}
             className="mt-0.5 grid h-[14px] w-[14px] place-items-center rounded"
             style={{
               border: terms ? "none" : "1px solid var(--pa-card-border)",
@@ -133,13 +249,35 @@ export function SignupFormFields({
             </Link>
           </span>
         </label>
-        {error ? (
+        {success ? (
+          <p className="text-sm" style={{ color: "var(--pa-acc2)" }} role="status">
+            {success}
+          </p>
+        ) : null}
+        {error === "duplicate_email" ? (
+          <p className="text-sm" style={{ color: "var(--pa-acc3)" }} role="alert">
+            An account with this email already exists.{" "}
+            <Link href="/login" style={{ color: "var(--pa-acc1)" }}>
+              Sign in instead?
+            </Link>
+          </p>
+        ) : error ? (
           <p className="text-sm" style={{ color: "var(--pa-acc3)" }} role="alert">
             {error}
           </p>
         ) : null}
-        <ButtonGradient type="submit" fullWidth disabled={isPending || !email || password.length < 8 || !terms}>
-          {isPending ? "Creating account…" : "Create account"}
+        <ButtonGradient
+          type="submit"
+          fullWidth
+          disabled={isPending || !email || password.length < 8 || !confirmPassword || !terms}
+        >
+          {isPending ? (
+            <span className="inline-flex items-center justify-center gap-2">
+              <Spinner size="sm" /> Creating account…
+            </span>
+          ) : (
+            "Create Account"
+          )}
         </ButtonGradient>
       </form>
       {showGoogle ? (

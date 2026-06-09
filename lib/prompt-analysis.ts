@@ -1,33 +1,9 @@
 import type { HybridAnalyzeResult } from "@/lib/analyzer";
 import { analyzePromptWithRecovery } from "@/lib/analyzer";
 import { AUTO_PUBLISH_THRESHOLD_EXCLUSIVE } from "@/lib/analyzer/scoringEngine";
-import { analyzePromptHeuristics, type AnalyzerResult } from "@/lib/ai";
-
-function humanizeRuleFlag(flag: string): string {
-  if (flag.startsWith("below_min_length:")) {
-    const n = flag.split(":")[1] ?? "?";
-    return `Prompt is shorter than the safe minimum (${n} characters).`;
-  }
-  if (flag.startsWith("above_max_length:")) {
-    const n = flag.split(":")[1] ?? "?";
-    return `Prompt exceeds maximum length (${n} characters).`;
-  }
-  if (flag.startsWith("banned_keyword:")) {
-    const k = flag.slice("banned_keyword:".length);
-    return `Potentially unsafe or disallowed content detected (${k}).`;
-  }
-  if (flag === "spam_like_repetition") return "Content looks highly repetitive (spam-like).";
-  if (flag === "low_entropy_line") return "Contains very low-information lines.";
-  if (flag === "possible_duplicate_content") return "Content may be duplicated back-to-back.";
-  if (flag === "missing_role") return "Missing an explicit role (e.g., “Act as …” / “You are …”).";
-  if (flag === "missing_task") return "Missing a clear task or objective.";
-  if (flag === "missing_output_format") return "Missing an explicit output format (e.g., JSON / Markdown / bullets).";
-  if (flag === "missing_constraints") return "Missing constraints (must-haves, do-nots, limits).";
-  if (flag === "missing_structure") return "Missing structure (sections, headings, or ordered steps).";
-  if (flag === "analyzer_exception") return "Analyzer hit an unexpected error; score used rule-based recovery.";
-  if (flag === "analyzer_error") return "AI analysis was unavailable; conservative scoring was applied.";
-  return flag.replaceAll("_", " ");
-}
+import type { ModerationProviderId } from "@/lib/analyzer/moderationAiShared";
+import { analyzePromptQuality, type AnalyzerResult } from "@/lib/ai";
+import type { QualityAnalyzerId } from "@/lib/quality-analyzer";
 
 function breakdownFromHybrid(hybrid: HybridAnalyzeResult): AnalyzerResult["breakdown"] | undefined {
   const ad = hybrid.aiDetails;
@@ -55,8 +31,20 @@ function breakdownFromHybrid(hybrid: HybridAnalyzeResult): AnalyzerResult["break
 
 export type UnifiedAnalysisPreview = {
   score: number;
+  overallScore: number;
+  /** Moderation pipeline source (publish decision). */
   source: "rule" | "rule+ai";
+  /** Quality analysis source shown in the upload preview. */
+  qualitySource: "ai" | "rules";
+  analyzerProvider: QualityAnalyzerId;
+  providerLabel: string;
+  fallbackFrom?: QualityAnalyzerId;
   aiStatus: "ok" | "error" | "skipped";
+  promptType?: string;
+  promptTypeLabel?: string;
+  detectedIntent?: string;
+  dimensions?: NonNullable<AnalyzerResult["dimensions"]>;
+  review?: NonNullable<AnalyzerResult["review"]>;
   issues: string[];
   suggestions: string[];
   improvedPrompt: string;
@@ -64,78 +52,110 @@ export type UnifiedAnalysisPreview = {
   missingParts?: AnalyzerResult["missingParts"];
   moderation: {
     pipelineStatus: HybridAnalyzeResult["status"];
-    /** True when blended score clears the same threshold used on save for auto-publish. */
     canAutoPublish: boolean;
     autoPublishThresholdExclusive: number;
+    pipelineScore: number;
+    moderationProvider?: ModerationProviderId;
+    moderationProviderLabel?: string;
+    moderationFallbacks?: ModerationProviderId[];
   };
   debug?: Record<string, unknown>;
 };
 
-function uniqCap(strings: string[], max: number) {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of strings) {
-    const s = raw.trim();
-    if (!s) continue;
-    const key = s.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(s);
-    if (out.length >= max) break;
-  }
-  return out;
+function moderationMetaFromHybrid(hybrid: HybridAnalyzeResult): UnifiedAnalysisPreview["moderation"] {
+  const ad = hybrid.aiDetails;
+  const pipelineScore = Math.round(hybrid.score);
+  const provider =
+    ad && typeof ad === "object" && typeof ad.provider === "string"
+      ? (ad.provider as ModerationProviderId)
+      : undefined;
+  const providerLabel =
+    ad && typeof ad === "object" && typeof ad.providerLabel === "string"
+      ? ad.providerLabel
+      : undefined;
+  const fallbacks =
+    ad && typeof ad === "object" && Array.isArray(ad.fallbacks)
+      ? (ad.fallbacks as ModerationProviderId[])
+      : undefined;
+
+  return {
+    pipelineStatus: hybrid.status,
+    canAutoPublish: hybrid.status === "approved",
+    autoPublishThresholdExclusive: AUTO_PUBLISH_THRESHOLD_EXCLUSIVE,
+    pipelineScore,
+    moderationProvider: provider,
+    moderationProviderLabel: providerLabel,
+    moderationFallbacks: fallbacks,
+  };
+}
+
+function enrichReviewWithAiStatus(
+  review: NonNullable<AnalyzerResult["review"]>,
+  quality: AnalyzerResult,
+): NonNullable<AnalyzerResult["review"]> {
+  if (quality.source === "ai") return review;
+  if (!quality.fallbackFrom) return review;
+  return {
+    ...review,
+    aiEnhancementNote: `${quality.fallbackFrom} analysis was unavailable. Showing local analyzer results.`,
+  };
 }
 
 export function buildUnifiedPreview(
   hybrid: HybridAnalyzeResult,
-  heuristics: AnalyzerResult,
+  quality: AnalyzerResult,
   includeDebug: boolean,
 ): UnifiedAnalysisPreview {
-  const issues: string[] = [];
+  const pipelineScore = Math.round(hybrid.score);
+  const overallScore = quality.overallScore ?? quality.score;
+  const score = overallScore;
+  const breakdown =
+    quality.source === "ai"
+      ? quality.breakdown
+      : quality.dimensions
+        ? undefined
+        : breakdownFromHybrid(hybrid) ?? quality.breakdown;
 
-  const ad = hybrid.aiDetails;
-  if (ad && typeof ad === "object" && "scores" in ad) {
-    const scores = (ad as { scores?: { reason?: string } }).scores;
-    const r = scores?.reason?.trim();
-    if (r) issues.push(r);
-  }
-  if (ad && typeof ad === "object" && "aiError" in ad && ad.aiError) {
-    issues.push(
-      `Automated review used a fallback signal: ${String((ad as { aiError?: unknown }).aiError).slice(0, 200)}`,
-    );
-  }
+  const review = quality.review ? enrichReviewWithAiStatus(quality.review, quality) : undefined;
 
-  for (const f of hybrid.flags) {
-    issues.push(humanizeRuleFlag(f));
-  }
-  for (const iss of heuristics.issues) issues.push(iss);
-
-  const score = Math.round(hybrid.score);
-  const breakdown = breakdownFromHybrid(hybrid) ?? heuristics.breakdown;
-  /** Same bar as save path: hybrid pipeline already encodes the > threshold exclusive rule. */
-  const canAutoPublish = hybrid.status === "approved";
+  const suggestions = review
+    ? [...(review.highImpactImprovements ?? []), ...(review.optionalEnhancements ?? [])]
+    : quality.suggestions;
 
   const preview: UnifiedAnalysisPreview = {
     score,
+    overallScore,
     source: hybrid.source,
+    qualitySource: quality.source === "ai" ? "ai" : "rules",
+    analyzerProvider: quality.analyzerProvider,
+    providerLabel: quality.providerLabel,
     aiStatus: hybrid.aiStatus,
-    issues: uniqCap(issues, 14),
-    suggestions: uniqCap(heuristics.suggestions, 14),
-    improvedPrompt: heuristics.improvedPrompt,
+    promptType: quality.promptType,
+    promptTypeLabel: quality.promptTypeLabel,
+    detectedIntent: quality.detectedIntent,
+    dimensions: quality.source === "rules" ? quality.dimensions : undefined,
+    review,
+    issues: quality.review ? [] : quality.source === "ai" ? quality.issues : [],
+    suggestions,
+    improvedPrompt: quality.improvedPrompt,
     breakdown,
-    missingParts: heuristics.missingParts,
-    moderation: {
-      pipelineStatus: hybrid.status,
-      canAutoPublish,
-      autoPublishThresholdExclusive: AUTO_PUBLISH_THRESHOLD_EXCLUSIVE,
-    },
+    missingParts: quality.missingParts,
+    fallbackFrom: quality.fallbackFrom,
+    moderation: moderationMetaFromHybrid(hybrid),
   };
 
   if (includeDebug) {
+    const ad = hybrid.aiDetails;
     preview.debug = {
-      decisionScore: score,
+      displayScore: score,
+      qualitySource: quality.source,
+      analyzerProvider: quality.analyzerProvider,
+      pipelineScore,
+      decisionScore: pipelineScore,
       pipelineStatus: hybrid.status,
       ruleFlags: hybrid.flags,
+      aiStatus: hybrid.aiStatus,
+      moderationProvider: moderationMetaFromHybrid(hybrid).moderationProvider,
       aiDetailsKeys: ad && typeof ad === "object" ? Object.keys(ad) : [],
     };
   }
@@ -145,10 +165,10 @@ export function buildUnifiedPreview(
 
 export async function runUnifiedPromptAnalysis(
   content: string,
-  options?: { includeDebug?: boolean },
-): Promise<{ hybrid: HybridAnalyzeResult; heuristics: AnalyzerResult; preview: UnifiedAnalysisPreview }> {
+  options?: { includeDebug?: boolean; analyzerProvider?: QualityAnalyzerId },
+): Promise<{ hybrid: HybridAnalyzeResult; quality: AnalyzerResult; preview: UnifiedAnalysisPreview }> {
   const hybrid = await analyzePromptWithRecovery(content);
-  const heuristics = analyzePromptHeuristics(content);
-  const preview = buildUnifiedPreview(hybrid, heuristics, options?.includeDebug === true);
-  return { hybrid, heuristics, preview };
+  const quality = await analyzePromptQuality(content, options?.analyzerProvider ?? "local");
+  const preview = buildUnifiedPreview(hybrid, quality, options?.includeDebug === true);
+  return { hybrid, quality, preview };
 }

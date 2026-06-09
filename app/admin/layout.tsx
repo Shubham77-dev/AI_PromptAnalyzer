@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 
 export default async function AdminLayout({ children }: Readonly<{ children: ReactNode }>) {
   const user = await getCurrentUser();
-  if (!user || !isAdmin(user)) redirect("/");
+  if (!user || !isAdmin(user)) redirect("/dashboard?error=access_denied");
 
   const flaggedCount = await prisma.prompt
     .count({

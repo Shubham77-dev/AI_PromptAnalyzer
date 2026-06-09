@@ -3,6 +3,7 @@
 import { Card } from "@/components/ui/Card";
 import { CardHeader } from "@/components/ui/CardHeader";
 import type { RecentPromptRow } from "@/components/upload/uploadTypes";
+import { formatDateStable } from "@/lib/format-date";
 
 function scoreTone(score: number | null) {
   if (score == null) return { bg: "var(--pa-hint)", color: "var(--pa-muted)" };
@@ -54,7 +55,7 @@ export function UploadRecentCard({
                   {r.content.trim().slice(0, 80) || "—"}
                 </span>
                 <span className="ml-auto shrink-0" style={{ fontSize: 10, color: "var(--pa-muted)" }}>
-                  {new Date(r.createdAt).toLocaleDateString()}
+                  {formatDateStable(r.createdAt)}
                 </span>
               </button>
             );

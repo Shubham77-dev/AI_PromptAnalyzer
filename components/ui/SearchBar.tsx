@@ -4,6 +4,7 @@ export interface SearchBarProps {
   placeholder: string;
   value: string;
   onChange: (v: string) => void;
+  onClear?: () => void;
 }
 
 function SearchIcon() {
@@ -15,7 +16,7 @@ function SearchIcon() {
   );
 }
 
-export function SearchBar({ placeholder, value, onChange }: Readonly<SearchBarProps>) {
+export function SearchBar({ placeholder, value, onChange, onClear }: Readonly<SearchBarProps>) {
   return (
     <div
       className="flex items-center gap-2"
@@ -34,6 +35,20 @@ export function SearchBar({ placeholder, value, onChange }: Readonly<SearchBarPr
         className="pa-search-input min-w-0 flex-1 border-0 bg-transparent outline-none"
         style={{ fontSize: 12, color: "var(--pa-text)" }}
       />
+      {value ? (
+        <button
+          type="button"
+          aria-label="Clear search"
+          onClick={() => {
+            onChange("");
+            onClear?.();
+          }}
+          className="border-0 bg-transparent"
+          style={{ fontSize: 16, lineHeight: 1, color: "var(--pa-muted)", cursor: "pointer" }}
+        >
+          ×
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -8,6 +8,8 @@ import { canBypassPromptValidation } from "@/lib/rbac";
 import { normalizeOnly, validatePromptForPublish } from "@/lib/prompt-validator";
 import { runUnifiedPromptAnalysis } from "@/lib/prompt-analysis";
 import {
+  buildPromptAnalysisRow,
+  buildPromptQualityFields,
   resolveSavePersistence,
   saveDebugSnapshot,
   type SaveIntent,
@@ -39,7 +41,7 @@ export async function POST(req: Request) {
 
     const saveIntent = parsed.data.saveIntent as SaveIntent;
 
-    const { hybrid } = await runUnifiedPromptAnalysis(normalized);
+    const { hybrid, quality } = await runUnifiedPromptAnalysis(normalized);
     console.log("[prompts/create] unified snapshot:", {
       saveIntent,
       pipelineStatus: hybrid.status,
@@ -64,7 +66,7 @@ export async function POST(req: Request) {
         createdAt: { gt: new Date(Date.now() - 5 * 60 * 1000) },
       },
       orderBy: { createdAt: "desc" },
-      include: { stats: true },
+      include: { analysis: true, stats: true },
     });
     if (recentDuplicate) {
       return NextResponse.json({
@@ -78,23 +80,36 @@ export async function POST(req: Request) {
       });
     }
 
-    const data: Prisma.PromptUncheckedCreateInput = {
-      userId: user.id,
-      content: normalized,
-      status: nextStatus,
-      moderationStatus,
-      flagged,
-      reason: persistence.reason,
-      score: hybrid.score,
-      flags: persistence.flags,
-      aiDetails: hybrid.aiDetails ? (hybrid.aiDetails as Prisma.InputJsonValue) : Prisma.DbNull,
-      moderationScore: hybrid.score,
-      moderationRaw: hybrid.aiDetails ? (hybrid.aiDetails as Prisma.InputJsonValue) : Prisma.DbNull,
-    };
+    const analysisRow = buildPromptAnalysisRow(hybrid, quality);
+    const qualityFields = buildPromptQualityFields(normalized, quality);
 
     const created = await prisma.prompt.create({
-      data: { ...data, stats: { create: {} } },
-      include: { stats: true },
+      data: {
+        userId: user.id,
+        content: normalized,
+        status: nextStatus,
+        moderationStatus,
+        flagged,
+        reason: persistence.reason,
+        score: qualityFields.score,
+        qualityDimensions: qualityFields.qualityDimensions
+          ? (qualityFields.qualityDimensions as Prisma.InputJsonValue)
+          : Prisma.DbNull,
+        promptTypeLabel: qualityFields.promptTypeLabel,
+        maturityLevel: qualityFields.maturityLevel,
+        detectedIntent: qualityFields.detectedIntent,
+        techStack: qualityFields.techStack,
+        searchDomain: qualityFields.searchDomain,
+        searchRole: qualityFields.searchRole,
+        searchKeywords: qualityFields.searchKeywords,
+        flags: persistence.flags,
+        aiDetails: hybrid.aiDetails ? (hybrid.aiDetails as Prisma.InputJsonValue) : Prisma.DbNull,
+        moderationScore: hybrid.score,
+        moderationRaw: hybrid.aiDetails ? (hybrid.aiDetails as Prisma.InputJsonValue) : Prisma.DbNull,
+        stats: { create: {} },
+        analysis: { create: analysisRow },
+      },
+      include: { analysis: true, stats: true },
     });
 
     const publishGateFailed = !publishValidation.ok && saveIntent === "publish";
